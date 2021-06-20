@@ -2,6 +2,7 @@
 <html>
   <head>
     <script type="module" src="scripts/app.js"></script>
+    <link rel="stylesheet" href="css/looper.css"></link>
   </head>
   <body>
     <div>
@@ -10,6 +11,26 @@
       <button id="sampleShit">Sample shit</button>
     </div>
     <div id="tracks">
+    </div>
+
+    <div>
+      Adjust the following slider if your recordings gets out of sync with everything else.
+      A bigger value makes your recordings come earlier.
+      <br>
+      <label for="lagCompensationSlider">Lag compensation:</label>
+      <input
+        type="range"
+        id="lagCompensationSlider"
+        min="0"
+        max="200"
+        step="10"
+        >
+      <input
+        type="number"
+        id="lagCompensationEntry"
+        step="10"
+        >
+      <span>ms</span>
     </div>
   </body>
 </html>

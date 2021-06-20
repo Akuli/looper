@@ -45,7 +45,7 @@ function connectMultiChannelToSpeaker(ctx, source) {
 
 // Handles wrapping over the end
 function copyAndWrap(startTime, sourceData, destData) {
-  startTime -= 0.12;  // Compensate for lag. There's much more lag than this.ctx.baseLatency says.
+  startTime -= (+document.getElementById("lagCompensationSlider").value) / 1000;
   let sourceOffset = 0;
   let destinationOffset = Math.round(startTime*SAMPLE_RATE) % destData.length;
 

@@ -1,6 +1,23 @@
 import { AudioManager } from './audioManager.js';
 
-document.addEventListener('DOMContentLoaded', async() => {
+function initLagCompensation() {
+  const slider = document.getElementById("lagCompensationSlider");
+  const entry = document.getElementById("lagCompensationEntry");
+
+  function saveAndSyncValue(value) {
+    slider.value = value;
+    entry.value = value;
+    window.localStorage.lagCompensation = value;
+  }
+
+  lagCompensationSlider.addEventListener('input', event => saveAndSyncValue(event.target.value));
+  lagCompensationEntry.addEventListener('input', event => saveAndSyncValue(event.target.value));
+
+  const valueOnMySystem = 130;
+  saveAndSyncValue(+(window.localStorage.lagCompensation || valueOnMySystem));
+}
+
+async function initAudioManagerButtons() {
   const userMedia = await navigator.mediaDevices.getUserMedia({ audio: true });
   const audioManager = new AudioManager(userMedia, 120, 4);
 
@@ -19,4 +36,9 @@ document.addEventListener('DOMContentLoaded', async() => {
     stopButton.disabled = true;
   });
   sampleShitButton.addEventListener('click', () => audioManager.addSampleShit());
+}
+
+document.addEventListener('DOMContentLoaded', async() => {
+  initLagCompensation();
+  await initAudioManagerButtons();
 });

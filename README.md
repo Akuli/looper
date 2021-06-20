@@ -4,4 +4,8 @@ TODO:
 - create ui showing all tracks
 - deleting and muting tracks (don't always choose next free channel out of 32 channels)
 - track-specific volume sliders
+- overlap recordings longer than one track length (2 track lengths enough?)
+- css
+- bpm chooser
+- download button
 - network multiplayer lol

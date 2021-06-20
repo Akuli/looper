@@ -25,7 +25,7 @@ async function arrayBufferToAudioBuffer(arrayBuffer) {
 }
 
 function sampleShit(targetArray) {
-  const notes = [0, 2, 4, 5, 7, 5, 4, 2];
+  const notes = [0, 2, 4, 5, 7, 9, 11, 12];
   for (let i = 0; i < targetArray.length; i++) {
     const note = notes[Math.floor(i / (0.25*SAMPLE_RATE))]
     targetArray[i] = 0.05*Math.sin(2*Math.PI*110*Math.pow(2, note/12)*i/SAMPLE_RATE);

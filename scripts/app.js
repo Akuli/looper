@@ -1,4 +1,6 @@
-let loopDuration = 2;
+let bpm = 120;
+let beatsPerLoop = 4;
+let loopDuration = beatsPerLoop / (bpm/60);
 let ctx = null;
 let loopAudioBuffer = null;
 let chanCounter = 0;
@@ -14,11 +16,10 @@ async function blobToArrayBuffer(blob) {
 }
 
 async function arrayBufferToAudioBuffer(arrayBuffer) {
-  const audioBuffer = await new Promise(resolve => ctx.decodeAudioData(arrayBuffer, resolve));
-  return audioBuffer;
+  return await new Promise(resolve => ctx.decodeAudioData(arrayBuffer, resolve));
 }
 
-function createTestAudioBuffer() {
+function sampleShit() {
   // One channel, two seconds
   const audioBuffer = ctx.createBuffer(1, ctx.sampleRate * loopDuration, ctx.sampleRate);
 
@@ -34,7 +35,7 @@ function createTestAudioBuffer() {
     } else {
       note = 19;
     }
-    float32array[i] = Math.sin(2*Math.PI*110*Math.pow(2, note/12)*i/ctx.sampleRate);
+    float32array[i] = 0.05*Math.sin(2*Math.PI*110*Math.pow(2, note/12)*i/ctx.sampleRate);
   }
 
   return audioBuffer;
@@ -72,8 +73,6 @@ async function main() {
   const bufSource = ctx.createBufferSource();
   bufSource.channelCount = 32;
   bufSource.buffer = loopAudioBuffer;
-  console.log("bufSource", bufSource);
-  console.log("bufSource.channelCount", bufSource.channelCount);
   bufSource.loop = true;
   connectMultiChannelToSpeaker(bufSource);
   bufSource.start();
@@ -90,6 +89,7 @@ async function main() {
       );
       const i = chanCounter++;
       console.log("Writing to channel " + i);
+      // TODO: overlap when too long to fit
       loopAudioBuffer.getChannelData(i).set(audioBuffer.getChannelData(0), 0);
     };
     mediaRecorder.start();
@@ -99,5 +99,14 @@ async function main() {
     mediaRecorder.requestData();
     mediaRecorder.stop();
   });
+
+  document.getElementById("foo").addEventListener("click", () => {
+    const i = chanCounter++;
+    console.log("Sample shit goes to channel " + i);
+    loopAudioBuffer.getChannelData(i).set(sampleShit().getChannelData(0), 0);
+  });
+
+  // TODO: ctx.currentTime for layer placement
+  // TODO: latency adjuster scaler adjustmenter: use ctx.baseLatency if available (experimental)
 }
 main()

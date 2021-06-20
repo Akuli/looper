@@ -1,6 +1,11 @@
-let bpm = 120;
-let beatsPerLoop = 4;
-let loopDuration = beatsPerLoop / (bpm/60);
+const BEATS_PER_MINUTE = 120;  // user input, to be used only once
+
+const BEATS_PER_LOOP = 4;
+const SAMPLE_RATE = 44100;
+const SAMPLES_PER_BEAT = Math.round(SAMPLE_RATE / (BEATS_PER_MINUTE/60));
+const SAMPLES_PER_LOOP = SAMPLES_PER_BEAT * BEATS_PER_LOOP;
+
+let loopDuration = SAMPLES_PER_BEAT;
 let ctx = null;
 let loopAudioBuffer = null;
 let chanCounter = 0;
@@ -19,26 +24,12 @@ async function arrayBufferToAudioBuffer(arrayBuffer) {
   return await new Promise(resolve => ctx.decodeAudioData(arrayBuffer, resolve));
 }
 
-function sampleShit() {
-  // One channel, two seconds
-  const audioBuffer = ctx.createBuffer(1, ctx.sampleRate * loopDuration, ctx.sampleRate);
-
-  const float32array = audioBuffer.getChannelData(0);
-  for (let i = 0; i < audioBuffer.length; i++) {
-    let note;
-    if (i % ctx.sampleRate < 0.25*ctx.sampleRate) {
-      note = 7;
-    } else if (i % ctx.sampleRate < 0.5*ctx.sampleRate) {
-      note = 10;
-    } else if (i % ctx.sampleRate < 0.75*ctx.sampleRate) {
-      note = 15;
-    } else {
-      note = 19;
-    }
-    float32array[i] = 0.05*Math.sin(2*Math.PI*110*Math.pow(2, note/12)*i/ctx.sampleRate);
+function sampleShit(targetArray) {
+  const notes = [0, 2, 4, 5, 7, 5, 4, 2];
+  for (let i = 0; i < targetArray.length; i++) {
+    const note = notes[Math.floor(i / (0.25*SAMPLE_RATE))]
+    targetArray[i] = 0.05*Math.sin(2*Math.PI*110*Math.pow(2, note/12)*i/SAMPLE_RATE);
   }
-
-  return audioBuffer;
 }
 
 function connectMultiChannelToSpeaker(source) {
@@ -54,13 +45,34 @@ function connectMultiChannelToSpeaker(source) {
   merger.connect(ctx.destination);
 }
 
+// Handles wrapping over the end
+function saveTrack(startTime, sourceData, destData) {
+  startTime -= 0.1;  // Compensate for lag
+  let sourceOffset = 0;
+  let destinationOffset = Math.round(startTime*SAMPLE_RATE) % destData.length;
+
+  while (sourceOffset < sourceData.length) {
+    const dataLeftToCopy = sourceData.length - sourceOffset;
+    const roomForData = destData.length - destinationOffset;
+    const howMuchToCopy = Math.min(dataLeftToCopy, roomForData);
+    destData.set(sourceData.slice(sourceOffset, sourceOffset + howMuchToCopy), destinationOffset);
+    sourceOffset += howMuchToCopy;
+    destinationOffset += howMuchToCopy;
+    destinationOffset %= destData.length;
+  }
+}
+
 async function main() {
   const recordButton = document.getElementById('record');
   const stopButton = document.getElementById('stop');
 
-  const userMedia = await navigator.mediaDevices.getUserMedia({audio: true});
-  ctx = new AudioContext({ sampleRate: 44100 });
-  loopAudioBuffer = new AudioBuffer({ length: 2*ctx.sampleRate, sampleRate: ctx.sampleRate, numberOfChannels: 32 });
+  const userMedia = await navigator.mediaDevices.getUserMedia({ audio: true });
+  ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
+  loopAudioBuffer = new AudioBuffer({
+    length: SAMPLES_PER_LOOP,
+    sampleRate: SAMPLE_RATE,
+    numberOfChannels: 32
+  });
   for (let i = 0; i < 32; i++) {
     loopAudioBuffer.getChannelData(i).fill(0);
   }
@@ -78,6 +90,7 @@ async function main() {
   bufSource.start();
 
   recordButton.addEventListener('click', () => {
+    startTime = ctx.currentTime;
     mediaRecorder = new MediaRecorder(streamDestination.stream)
     const chunks = [];
     mediaRecorder.ondataavailable = event => chunks.push(event.data);
@@ -87,10 +100,7 @@ async function main() {
           new Blob(chunks, { type: 'audio/ogg; codecs=opus' })
         )
       );
-      const i = chanCounter++;
-      console.log("Writing to channel " + i);
-      // TODO: overlap when too long to fit
-      loopAudioBuffer.getChannelData(i).set(audioBuffer.getChannelData(0), 0);
+      saveTrack(startTime, audioBuffer.getChannelData(0), loopAudioBuffer.getChannelData(chanCounter++));
     };
     mediaRecorder.start();
   });
@@ -101,12 +111,11 @@ async function main() {
   });
 
   document.getElementById("foo").addEventListener("click", () => {
-    const i = chanCounter++;
-    console.log("Sample shit goes to channel " + i);
-    loopAudioBuffer.getChannelData(i).set(sampleShit().getChannelData(0), 0);
+    sampleShit(loopAudioBuffer.getChannelData(chanCounter++));
   });
 
   // TODO: ctx.currentTime for layer placement
   // TODO: latency adjuster scaler adjustmenter: use ctx.baseLatency if available (experimental)
 }
-main()
+
+document.addEventListener('DOMContentLoaded', main);

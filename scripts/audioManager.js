@@ -66,7 +66,7 @@ function sliderToGain(sliderPosBetween0And1) {
   we need to compensate that with exponent function.
 
   Requirements:
-    GainNode does nothing by default: sliderToGain(0.5) == 1
+    GainNode does nothing when slider is in middle: sliderToGain(0.5) == 1
     It can be made completely silent: sliderToGain(0) == 0
 
   But we still want some kinda exponential. This is the first mathematical

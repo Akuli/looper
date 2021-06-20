@@ -19,17 +19,28 @@ async function arrayBufferToAudioBuffer(ctx, arrayBuffer) {
   return await new Promise(resolve => ctx.decodeAudioData(arrayBuffer, resolve));
 }
 
+// returns array of GainNodes for adjusting volume
 function connectMultiChannelToSpeaker(ctx, source) {
   const splitter = ctx.createChannelSplitter(MAX_TRACKS);
   source.connect(splitter);
 
+  const gainNodes = [];
+
   const merger = ctx.createChannelMerger(2);
   for (let chanNumber = 0; chanNumber < MAX_TRACKS; chanNumber++) {
-    // Every channel goes to left and right
-    splitter.connect(merger, chanNumber, 0);
-    splitter.connect(merger, chanNumber, 1);
+    const gainNode = ctx.createGain();
+    gainNodes.push(gainNode);
+
+    // Channel goes to channel 0 of gain node
+    splitter.connect(gainNode, chanNumber, 0);
+
+    // Then it goes to both channels of merger
+    gainNode.connect(merger, 0, 0);
+    gainNode.connect(merger, 0, 1);
   }
   merger.connect(ctx.destination);
+
+  return gainNodes;
 }
 
 // Handles wrapping over the end
@@ -47,6 +58,22 @@ function copyAndWrap(startTime, sourceData, destData) {
     destinationOffset += howMuchToCopy;
     destinationOffset %= destData.length;
   }
+}
+
+function sliderToGain(sliderPosBetween0And1) {
+  /*
+  Our ears hear things logarithmically. To make volume slider feel natural,
+  we need to compensate that with exponent function.
+
+  Requirements:
+    GainNode does nothing by default: sliderToGain(0.5) == 1
+    It can be made completely silent: sliderToGain(0) == 0
+
+  But we still want some kinda exponential. This is the first mathematical
+  hack I came up with. It seems to work fine.
+  */
+  const f = (x => Math.exp(x));
+  return (f(sliderPosBetween0And1) - f(0)) / (f(0.5) - f(0));
 }
 
 export class AudioManager {
@@ -70,7 +97,7 @@ export class AudioManager {
     bufSource.channelCount = MAX_TRACKS;
     bufSource.buffer = this.loopAudioBuffer;
     bufSource.loop = true;
-    connectMultiChannelToSpeaker(this.ctx, bufSource);
+    this.gainNodes = connectMultiChannelToSpeaker(this.ctx, bufSource);
     bufSource.start();
 
     this.micStreamDestination = this.ctx.createMediaStreamDestination();
@@ -80,10 +107,14 @@ export class AudioManager {
 
   _addTrack(...args) {
     const usedNums = this.tracks.map(track => track.channelNum);
-    for (let i = 0; i < MAX_TRACKS; i++) {
-      if (!usedNums.includes(i)) {
-        const track = new Track(i, ...args);
+    for (let channelNum = 0; channelNum < MAX_TRACKS; channelNum++) {
+      if (!usedNums.includes(channelNum)) {
+        const track = new Track(channelNum, ...args);
         track.div.querySelector('.deleteButton').addEventListener('click', () => this._deleteTrack(track));
+        track.div.querySelector('.volumeSlider').addEventListener('input', () => {
+          const value = track.div.querySelector('.volumeSlider').value;
+          this.gainNodes[channelNum].gain.value = sliderToGain(+value);
+        });
         this.tracks.push(track);
         return track;
       }

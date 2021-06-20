@@ -83,11 +83,22 @@ export class AudioManager {
     for (let i = 0; i < MAX_TRACKS; i++) {
       if (!usedNums.includes(i)) {
         const track = new Track(i, ...args);
+        track.div.querySelector('.deleteButton').addEventListener('click', () => this._deleteTrack(track));
         this.tracks.push(track);
         return track;
       }
     }
     throw new Error(`more than ${MAX_TRACKS} tracks`)
+  }
+
+  _deleteTrack(track) {
+    this.loopAudioBuffer.getChannelData(track.channelNum).fill(0);
+    const index = this.tracks.indexOf(track);
+    if (index === -1) {
+      throw new Error("this shouldn't happen");
+    }
+    this.tracks.splice(index, 1);
+    track.div.remove();
   }
 
   addSampleShit() {

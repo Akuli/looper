@@ -158,16 +158,6 @@ export class AudioManager {
     track.div.remove();
   }
 
-  addSampleShit() {
-    const track = this._addTrack("Sample shit");
-    const targetArray = this.loopAudioBuffer.getChannelData(track.channelNum);
-    const notes = [0, 2, 4, 5, 7, 9, 11, 12];
-    for (let i = 0; i < targetArray.length; i++) {
-      const note = notes[Math.floor(i / (0.25*SAMPLE_RATE))]
-      targetArray[i] = 0.05*Math.sin(2*Math.PI*110*Math.pow(2, note/12)*i/SAMPLE_RATE);
-    }
-  }
-
   startRecording() {
     const startTime = this.ctx.currentTime;
     this.mediaRecorder = new MediaRecorder(this.micStreamDestination.stream)

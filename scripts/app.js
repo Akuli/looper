@@ -24,7 +24,6 @@ async function initAudioManagerButtons() {
 
   const recordButton = document.getElementById('record');
   const stopButton = document.getElementById('stop');
-  const sampleShitButton = document.getElementById('sampleShit');
 
   recordButton.addEventListener('click', () => {
     audioManager.startRecording();
@@ -36,7 +35,6 @@ async function initAudioManagerButtons() {
     recordButton.disabled = false;
     stopButton.disabled = true;
   });
-  sampleShitButton.addEventListener('click', () => audioManager.addSampleShit());
 }
 
 document.addEventListener('DOMContentLoaded', async() => {

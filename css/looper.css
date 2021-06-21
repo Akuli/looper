@@ -1,3 +1,64 @@
 #lagCompensationEntry {
     width: 3.5em;
 }
+
+#tracks {
+    display: flex;
+    flex-direction: column;
+}
+
+#tracks > div > .spacer {
+    flex-grow: 1;
+}
+
+#tracks > div {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 5px;
+    background: #ddd;
+    border-radius: 10px;
+    margin: 2px;
+}
+
+.trackLabel {
+    font-size: 1.2em;
+}
+
+#tracks > div > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#tracks > div > div > div {
+    display: flex;
+}
+
+#tracks > div > div > span {
+    margin-top: 5px;
+    margin-bottom: 10px;
+}
+
+#tracks > div > button {
+    font-size: 1.2em;
+}
+
+#buttonFrame {
+    padding: 10px;
+    text-align: center;
+}
+
+#buttonFrame > button {
+    margin-left: 20px;
+    margin-right: 20px;
+    font-size: 1.5em;
+}
+
+#lagDiv {
+    display: flex;
+}
+
+#lagDiv > * {
+    margin-left: 0.2em;
+}

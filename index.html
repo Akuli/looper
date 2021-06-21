@@ -5,32 +5,34 @@
     <link rel="stylesheet" href="css/looper.css"></link>
   </head>
   <body>
-    <div>
+    <div id="buttonFrame">
       <button id="record">Record</button>
       <button id="stop" disabled>Stop</button>
-      <button id="sampleShit">Sample shit</button>
     </div>
     <div id="tracks">
     </div>
 
     <div>
-      Adjust the following slider if your recordings gets out of sync with everything else.
-      A bigger value makes your recordings come earlier.
-      <br>
-      <label for="lagCompensationSlider">Lag compensation:</label>
-      <input
-        type="range"
-        id="lagCompensationSlider"
-        min="0"
-        max="200"
-        step="10"
-        >
-      <input
-        type="number"
-        id="lagCompensationEntry"
-        step="10"
-        >
-      <span>ms</span>
+      <p>
+        Adjust the slider below if your recordings gets out of sync with everything else.
+        A bigger value makes your recordings come earlier.
+      </p>
+      <div id="lagDiv">
+        <label for="lagCompensationSlider">Lag compensation:</label>
+        <input
+          type="range"
+          id="lagCompensationSlider"
+          min="0"
+          max="200"
+          step="10"
+          >
+        <input
+          type="number"
+          id="lagCompensationEntry"
+          step="10"
+          >
+        <span>ms</span>
+      </div>
     </div>
   </body>
 </html>

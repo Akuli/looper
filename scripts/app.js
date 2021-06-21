@@ -20,6 +20,7 @@ function initLagCompensation() {
 async function initAudioManagerButtons() {
   const userMedia = await navigator.mediaDevices.getUserMedia({ audio: true });
   const audioManager = new AudioManager(userMedia, 120, 4);
+  await audioManager.addMetronome();
 
   const recordButton = document.getElementById('record');
   const stopButton = document.getElementById('stop');

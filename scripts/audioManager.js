@@ -19,6 +19,18 @@ async function arrayBufferToAudioBuffer(ctx, arrayBuffer) {
   return await new Promise(resolve => ctx.decodeAudioData(arrayBuffer, resolve));
 }
 
+async function downloadBinaryFileAsArrayBuffer(fileUrl) {
+  const xhr = new XMLHttpRequest();
+  xhr.open("GET", fileUrl);
+  xhr.responseType = 'arraybuffer';
+
+  await new Promise(resolve => {
+    xhr.onload = () => resolve();
+    xhr.send();
+  });
+  return xhr.response;
+}
+
 // returns array of GainNodes for adjusting volume
 function connectMultiChannelToSpeaker(ctx, source) {
   const splitter = ctx.createChannelSplitter(MAX_TRACKS);
@@ -79,11 +91,12 @@ function sliderToGain(sliderPosBetween0And1) {
 export class AudioManager {
   constructor(userMedia, beatsPerMinute, beatsPerLoop) {
     const beatsPerSecond = beatsPerMinute / 60;
-    const samplesPerBeat = Math.round(SAMPLE_RATE / beatsPerSecond);
+    this._samplesPerBeat = Math.round(SAMPLE_RATE / beatsPerSecond);
+    this._beatsPerLoop = beatsPerLoop
 
     this.ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
     this.loopAudioBuffer = new AudioBuffer({
-      length: samplesPerBeat * beatsPerLoop,
+      length: this._samplesPerBeat * beatsPerLoop,
       sampleRate: SAMPLE_RATE,
       numberOfChannels: MAX_TRACKS,
     });
@@ -103,6 +116,19 @@ export class AudioManager {
     this.micStreamDestination = this.ctx.createMediaStreamDestination();
     const microphone = this.ctx.createMediaStreamSource(userMedia);
     microphone.connect(this.micStreamDestination);
+  }
+
+  async addMetronome() {
+    const arrayBuffer = await downloadBinaryFileAsArrayBuffer('/metronome.flac');
+    const audioBuffer = await arrayBufferToAudioBuffer(this.ctx, arrayBuffer);
+
+    const track = this._addTrack("Metronome");
+    const targetArray = this.loopAudioBuffer.getChannelData(track.channelNum);
+
+    const chunkSize = this._samplesPerBeat;
+    for (let beatNumber = 0; beatNumber < this._beatsPerLoop; beatNumber++) {
+      targetArray.set(audioBuffer.getChannelData(0).slice(0, chunkSize), beatNumber*chunkSize);
+    }
   }
 
   _addTrack(...args) {

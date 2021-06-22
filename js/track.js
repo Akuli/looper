@@ -2,7 +2,7 @@ export class Track {
   constructor(channel, beatCount, label) {
     this.channel = channel;
 
-    // Canvas looks a lot better if width is multiple of beatCount
+    // Metronome looks a lot better if width is multiple of beatCount
     const canvasWidth = Math.ceil(1000 / beatCount) * beatCount;
     const canvasHeight = 60;
 

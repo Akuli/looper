@@ -72,22 +72,6 @@ function copyAndWrap(startTime, sourceData, destData) {
   }
 }
 
-function sliderToGain(sliderPosBetween0And1) {
-  /*
-  Our ears hear things logarithmically. To make volume slider feel natural,
-  we need to compensate that with exponent function.
-
-  Requirements:
-    GainNode does nothing when slider is in middle: sliderToGain(0.5) == 1
-    It can be made completely silent: sliderToGain(0) == 0
-
-  But we still want some kinda exponential. This is the first mathematical
-  hack I came up with. It seems to work fine.
-  */
-  const f = (x => Math.exp(x));
-  return (f(sliderPosBetween0And1) - f(0)) / (f(0.5) - f(0));
-}
-
 export class AudioManager {
   constructor(userMedia, beatsPerMinute, beatsPerLoop) {
     const beatsPerSecond = beatsPerMinute / 60;
@@ -101,17 +85,19 @@ export class AudioManager {
       numberOfChannels: MAX_TRACKS,
     });
 
-    this.tracks = [];
-    for (let i = 0; i < MAX_TRACKS; i++) {
-      this.loopAudioBuffer.getChannelData(i).fill(0);
-    }
-
     const bufSource = this.ctx.createBufferSource();
     bufSource.channelCount = MAX_TRACKS;
     bufSource.buffer = this.loopAudioBuffer;
     bufSource.loop = true;
-    this.gainNodes = connectMultiChannelToSpeaker(this.ctx, bufSource);
+    const gainNodes = connectMultiChannelToSpeaker(this.ctx, bufSource);
     bufSource.start();
+
+    this.tracks = [];
+    this.freeChannels = gainNodes.map((node, index) => ({
+      gainNode: node,
+      num: index,  // TODO: still needed?
+      floatArray: this.loopAudioBuffer.getChannelData(index),
+    })).reverse();
 
     this.micStreamDestination = this.ctx.createMediaStreamDestination();
     const microphone = this.ctx.createMediaStreamSource(userMedia);
@@ -121,41 +107,38 @@ export class AudioManager {
   async addMetronome() {
     const arrayBuffer = await downloadBinaryFileAsArrayBuffer('/metronome.flac');
     const audioBuffer = await arrayBufferToAudioBuffer(this.ctx, arrayBuffer);
-
     const track = this._addTrack("Metronome");
-    const targetArray = this.loopAudioBuffer.getChannelData(track.channelNum);
 
     const chunkSize = this._samplesPerBeat;
     for (let beatNumber = 0; beatNumber < this._beatsPerLoop; beatNumber++) {
-      targetArray.set(audioBuffer.getChannelData(0).slice(0, chunkSize), beatNumber*chunkSize);
+      track.channel.floatArray.set(audioBuffer.getChannelData(0).slice(0, chunkSize), beatNumber*chunkSize);
     }
+    track.redrawCanvas();
   }
 
   _addTrack(...args) {
-    const usedNums = this.tracks.map(track => track.channelNum);
-    for (let channelNum = 0; channelNum < MAX_TRACKS; channelNum++) {
-      if (!usedNums.includes(channelNum)) {
-        const track = new Track(channelNum, ...args);
-        track.deleteButton.addEventListener('click', () => this._deleteTrack(track));
-        track.volumeSlider.addEventListener('input', () => {
-          const value = +track.div.querySelector('.volumeSlider').value;
-          this.gainNodes[channelNum].gain.value = sliderToGain(value);
-          track.deleteButton.disabled = (value > 0);
-        });
-        this.tracks.push(track);
-        return track;
-      }
+    const channel = this.freeChannels.pop();
+    if (channel === undefined) {
+      throw new Error("no more free channels");
     }
-    throw new Error(`more than ${MAX_TRACKS} tracks`)
+
+    const track = new Track(channel, this._beatsPerLoop, ...args);
+    track.deleteButton.addEventListener('click', () => this._deleteTrack(track));
+    this.tracks.push(track);
+    return track;
   }
 
   _deleteTrack(track) {
-    this.loopAudioBuffer.getChannelData(track.channelNum).fill(0);
     const index = this.tracks.indexOf(track);
     if (index === -1) {
       throw new Error("this shouldn't happen");
     }
     this.tracks.splice(index, 1);
+
+    track.channel.floatArray.fill(0);
+    track.channel.gainNode.gain.value = 1;
+    this.freeChannels.push(track.channel);
+
     track.div.remove();
   }
 
@@ -169,7 +152,8 @@ export class AudioManager {
       const arrayBuffer = await blobToArrayBuffer(blob);
       const audioBuffer = await arrayBufferToAudioBuffer(this.ctx, arrayBuffer);
       const track = this._addTrack();
-      copyAndWrap(startTime, audioBuffer.getChannelData(0), this.loopAudioBuffer.getChannelData(track.channelNum));
+      copyAndWrap(startTime, audioBuffer.getChannelData(0), track.channel.floatArray);
+      track.redrawCanvas();
     };
     this.mediaRecorder.start();
   }

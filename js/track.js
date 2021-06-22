@@ -43,7 +43,8 @@ export class Track {
     });
     this._updateDeleteButton();
 
-    this._canvasCtx = this.div.querySelector('canvas').getContext('2d');
+    this.canvas = this.div.querySelector('canvas');
+    this._canvasCtx = this.canvas.getContext('2d');
     this._canvasCtx.strokeStyle = '#00cc00';
 
     document.getElementById('tracks').appendChild(this.div);
@@ -76,30 +77,29 @@ export class Track {
   }
 
   redrawCanvas() {
-    const canvas = this._canvasCtx.canvas;
     const gain = this._getGain();
 
     this._canvasCtx.clearRect(0, 0, 100000, 100000);
 
     this._canvasCtx.lineWidth = 1;
     this._canvasCtx.beginPath();
-    this._canvasCtx.moveTo(0, canvas.height / 2);
-    this._canvasCtx.lineTo(canvas.width, canvas.height / 2);
+    this._canvasCtx.moveTo(0, this.canvas.height / 2);
+    this._canvasCtx.lineTo(this.canvas.width, this.canvas.height / 2);
     this._canvasCtx.stroke();
 
     this._canvasCtx.lineWidth = 4;  // it can be very squeezed horizontally
     this._canvasCtx.beginPath();
-    for (let x = 0; x < canvas.width; x++) {
-      const oldOffset = Math.floor(this.channel.floatArray.length * x/canvas.width);
-      const newOffset = Math.floor(this.channel.floatArray.length * (x+1)/canvas.width);
+    for (let x = 0; x < this.canvas.width; x++) {
+      const oldOffset = Math.floor(this.channel.floatArray.length * x/this.canvas.width);
+      const newOffset = Math.floor(this.channel.floatArray.length * (x+1)/this.canvas.width);
       const samples = this.channel.floatArray.slice(oldOffset, newOffset);
 
       // rms is like average, but describes audio volume better
       // https://en.wikipedia.org/wiki/Root_mean_square
       const rms = Math.sqrt(samples.map(x => x*x).reduce((x, y) => x+y) / samples.length);
       const volume = gain*rms;
-      this._canvasCtx.moveTo(x, (1 - volume)*canvas.height/2);
-      this._canvasCtx.lineTo(x, (1 + volume)*canvas.height/2);
+      this._canvasCtx.moveTo(x, (1 - volume)*this.canvas.height/2);
+      this._canvasCtx.lineTo(x, (1 + volume)*this.canvas.height/2);
     }
     this._canvasCtx.stroke();
   }

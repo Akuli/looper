@@ -56,6 +56,13 @@
     font-size: 1.2em;
 }
 
+#playIndicator {
+    position: absolute;
+    background-color: red;
+    width: 1px;
+    height: 200px;
+}
+
 #buttonFrame {
     padding: 10px;
     text-align: center;

@@ -102,6 +102,7 @@ export class AudioManager {
     this.micStreamDestination = this.ctx.createMediaStreamDestination();
     const microphone = this.ctx.createMediaStreamSource(userMedia);
     microphone.connect(this.micStreamDestination);
+    this._showPlayIndicator();
   }
 
   async addMetronome() {
@@ -161,5 +162,24 @@ export class AudioManager {
   stopRecording() {
     this.mediaRecorder.requestData();
     this.mediaRecorder.stop();
+  }
+
+  _showPlayIndicator() {
+    const indicator = document.getElementById('playIndicator');
+    if (this.tracks.length === 0) {
+      indicator.classList.add("hidden");
+    } else {
+      indicator.classList.remove("hidden");
+
+      const trackDiv = document.getElementById('tracks');
+      const canvas = this.tracks[0].canvas;
+
+      const ratio = (this.ctx.currentTime / this.loopAudioBuffer.duration) % 1;
+      indicator.style.left = `${canvas.offsetLeft + canvas.offsetWidth*ratio}px`;
+      indicator.style.top = `${trackDiv.offsetTop}px`;
+      indicator.style.height = `${trackDiv.offsetHeight}px`;
+    }
+
+    window.requestAnimationFrame(() => this._showPlayIndicator());
   }
 }

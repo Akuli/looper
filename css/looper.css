@@ -24,7 +24,6 @@
 .track > canvas {
     width: 1px;    /* Allow shrinking */
     flex-grow: 1;  /* ...but also grow it to fit space */
-    height: 60px;
     background-color: #333;
     padding: 1px;   /* Helps with displaying stuff at left edge */
 }

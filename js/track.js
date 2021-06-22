@@ -4,6 +4,7 @@ export class Track {
 
     // Canvas looks a lot better if width is multiple of beatCount
     const canvasWidth = Math.ceil(1000 / beatCount) * beatCount;
+    const canvasHeight = 60;
 
     this.div = document.createElement('div');
     this.div.classList.add("track");
@@ -24,7 +25,7 @@ export class Track {
         >
       </div>
     </div>
-    <canvas width="${canvasWidth}" height="60"></canvas>
+    <canvas width="${canvasWidth}" height="${canvasHeight}" style="height: ${canvasHeight}px;"></canvas>
     <button class="deleteTrackButton">Delete</button>
     `
 

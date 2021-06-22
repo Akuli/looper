@@ -10,16 +10,18 @@ function initLagCompensation() {
     window.localStorage.lagCompensation = value;
   }
 
-  lagCompensationSlider.addEventListener('input', event => saveAndSyncValue(event.target.value));
-  lagCompensationEntry.addEventListener('input', event => saveAndSyncValue(event.target.value));
+  lagCompensationSlider.addEventListener('input', event => saveAndSyncValue(+event.target.value));
+  lagCompensationEntry.addEventListener('input', event => saveAndSyncValue(+event.target.value));
 
   const valueOnMySystem = 130;
   saveAndSyncValue(+(window.localStorage.lagCompensation || valueOnMySystem));
 }
 
 async function initAudioManagerButtons() {
+  const urlParams = new URLSearchParams(window.location.search);
+
   const userMedia = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const audioManager = new AudioManager(userMedia, 120, 4);
+  const audioManager = new AudioManager(userMedia, +urlParams.get("bpm"), +urlParams.get("beatCount"));
   await audioManager.addMetronome();
 
   const recordButton = document.getElementById('record');

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="css/common.css"></link>
+    <link rel="stylesheet" href="css/looper.css"></link>
+    <script type="module" src="scripts/looper.js"></script>
+  </head>
+  <body>
+    <div id="buttonFrame">
+      <button class="big" id="record">Record</button>
+      <button class="big" id="stop" disabled>Stop</button>
+    </div>
+    <div id="tracks">
+    </div>
+
+    <div>
+      <p>
+        Adjust the slider below if your recordings get out of sync with everything else.
+        A bigger value makes your recordings come earlier.
+      </p>
+      <div id="lagDiv">
+        <label for="lagCompensationSlider">Lag compensation:</label>
+        <input
+          type="range"
+          id="lagCompensationSlider"
+          min="0"
+          max="200"
+          step="10"
+          >
+        <input
+          type="number"
+          id="lagCompensationEntry"
+          step="10"
+          >
+        <span>ms</span>
+      </div>
+    </div>
+  </body>
+</html>

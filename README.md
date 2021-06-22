@@ -11,7 +11,6 @@ TODO:
 - overlap recordings longer than one track length (2 track lengths enough?)
 - renaming tracks
 - darker css?
-- bpm chooser
 - download button
 - network multiplayer lol
 

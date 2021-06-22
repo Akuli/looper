@@ -5,7 +5,7 @@ export class Track {
     this.div = document.createElement('div');
     this.div.innerHTML = `
     <div>
-      <span class="trackLabel"></span>
+      <span class="trackName"></span>
       <div>
         <label for="track${channelNum}_volume">Volume:</label>
         <input
@@ -16,9 +16,14 @@ export class Track {
         >
       </div>
     </div>
-    <button class="deleteButton">Delete</button>
+    <button class="deleteButton" disabled>Delete</button>
     `
-    this.div.querySelector(".trackLabel").textContent = label || (`Track ${channelNum}`);
+
+    this.volumeSlider = this.div.querySelector('.volumeSlider');
+    this.trackName = this.div.querySelector('.trackName');
+    this.deleteButton = this.div.querySelector('.deleteButton');
+
+    this.trackName.textContent = label || `Track ${channelNum}`;
     document.getElementById('tracks').appendChild(this.div);
   }
 }

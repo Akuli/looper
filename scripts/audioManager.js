@@ -136,10 +136,11 @@ export class AudioManager {
     for (let channelNum = 0; channelNum < MAX_TRACKS; channelNum++) {
       if (!usedNums.includes(channelNum)) {
         const track = new Track(channelNum, ...args);
-        track.div.querySelector('.deleteButton').addEventListener('click', () => this._deleteTrack(track));
-        track.div.querySelector('.volumeSlider').addEventListener('input', () => {
-          const value = track.div.querySelector('.volumeSlider').value;
-          this.gainNodes[channelNum].gain.value = sliderToGain(+value);
+        track.deleteButton.addEventListener('click', () => this._deleteTrack(track));
+        track.volumeSlider.addEventListener('input', () => {
+          const value = +track.div.querySelector('.volumeSlider').value;
+          this.gainNodes[channelNum].gain.value = sliderToGain(value);
+          track.deleteButton.disabled = (value > 0);
         });
         this.tracks.push(track);
         return track;

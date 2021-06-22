@@ -174,6 +174,7 @@ export class AudioManager {
       const trackDiv = document.getElementById('tracks');
       const canvas = this.tracks[0].canvas;
 
+      // I also tried css variables and calc(), consumed more cpu that way
       const ratio = (this.ctx.currentTime / this.loopAudioBuffer.duration) % 1;
       indicator.style.left = `${canvas.offsetLeft + canvas.offsetWidth*ratio}px`;
       indicator.style.top = `${trackDiv.offsetTop}px`;

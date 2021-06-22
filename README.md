@@ -9,7 +9,6 @@ TODO:
 - moving tracks by drag and drop
 - lag compensation: playing tracks don't change when slider moves, hard to find correct value
 - overlap recordings longer than one track length (2 track lengths enough?)
-- renaming tracks
 - darker css?
 - download button
 - network multiplayer lol

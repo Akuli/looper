@@ -25,22 +25,30 @@
     font-size: 1.2em;
 }
 
-#tracks > div > div {
+.trackControls {
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
-#tracks > div > div > div {
+.trackVolumeContainer {
     display: flex;
 }
 
-#tracks > div > div > span {
+.trackName {
     margin-top: 5px;
     margin-bottom: 10px;
+    text-align: center;
+    font-size: 1em;
+    background-color: transparent;
+    border: 0px;
 }
 
-#tracks > div > button {
+.trackName:focus {
+    background-color: white;
+}
+
+.deleteTrackButton {
     font-size: 1.2em;
 }
 

@@ -4,9 +4,13 @@ export class Track {
 
     this.div = document.createElement('div');
     this.div.innerHTML = `
-    <div>
-      <span class="trackName"></span>
-      <div>
+    <div class="trackControls">
+      <input
+        class="trackName"
+        onclick="event.target.select()"
+        onkeypress="if(event.key === 'Enter') event.target.blur();"
+      ></input>
+      <div class="trackVolumeContainer">
         <label for="track${channelNum}_volume">Volume:</label>
         <input
           type="range"
@@ -16,14 +20,13 @@ export class Track {
         >
       </div>
     </div>
-    <button class="deleteButton" disabled>Delete</button>
+    <canvas width="1" height="1"></canvas>
+    <button class="deleteTrackButton" disabled>Delete</button>
     `
 
     this.volumeSlider = this.div.querySelector('.volumeSlider');
-    this.trackName = this.div.querySelector('.trackName');
-    this.deleteButton = this.div.querySelector('.deleteButton');
-
-    this.trackName.textContent = label || `Track ${channelNum}`;
+    this.deleteButton = this.div.querySelector('.deleteTrackButton');
+    this.div.querySelector('input.trackName').value = label || `Track ${channelNum}`;
     document.getElementById('tracks').appendChild(this.div);
   }
 }

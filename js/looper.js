@@ -37,6 +37,15 @@ async function initAudioManagerButtons() {
     recordButton.disabled = false;
     stopButton.disabled = true;
   });
+
+  document.getElementById('wavButton').addEventListener('click', () => {
+    const downloadLink = document.createElement("a");
+    downloadLink.classList.add("hidden");
+    document.body.appendChild(downloadLink);
+    downloadLink.href = URL.createObjectURL(audioManager.getWavBlob());
+    downloadLink.download = "loop.wav";
+    downloadLink.click();
+  });
 }
 
 document.addEventListener('DOMContentLoaded', async() => {

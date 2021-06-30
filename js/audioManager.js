@@ -72,6 +72,10 @@ function copyAndWrap(startTime, sourceData, destData) {
   }
 }
 
+function asciiToArrayBuffer(asciiString) {
+  return new Uint8Array([...asciiString].map(c => c.charCodeAt(0))).buffer;
+}
+
 export class AudioManager {
   constructor(userMedia, beatsPerMinute, beatsPerLoop) {
     const beatsPerSecond = beatsPerMinute / 60;
@@ -182,5 +186,47 @@ export class AudioManager {
     }
 
     window.requestAnimationFrame(() => this._showPlayIndicator());
+  }
+
+  getWavBlob() {
+    const n = this.loopAudioBuffer.length
+    const combinedArray = new Float32Array(n);
+
+    for (const track of this.tracks) {
+      const gain = track.channel.gainNode.gain.value;
+      const sourceArray = track.channel.floatArray;
+      console.log(gain);
+      for (let i = 0; i < n; i++) {
+        combinedArray[i] += gain*sourceArray[i];
+      }
+    }
+
+    const audioDataInt16 = new Int16Array(combinedArray.map(value => {
+      if (value > 1) {
+        value = 1;
+      }
+      if (value < -1) {
+        value = -1;
+      }
+      return Math.round(0x7fff * value);
+    }));
+
+    // Based on source code of Python's wave module
+    const chunks = [
+      asciiToArrayBuffer("RIFF"),
+      new Uint32Array([36 + 2*n]).buffer,
+      asciiToArrayBuffer("WAVEfmt "),
+      new Uint32Array([16]).buffer,
+      new Uint16Array([1]).buffer,
+      new Uint16Array([1]).buffer,
+      new Uint32Array([SAMPLE_RATE]).buffer,
+      new Uint32Array([2*SAMPLE_RATE]).buffer,
+      new Uint16Array([2]).buffer,
+      new Uint16Array([16]).buffer,
+      asciiToArrayBuffer("data"),
+      new Uint16Array([2*n]).buffer,
+      audioDataInt16.buffer,
+    ];
+    return new Blob(chunks, { type: 'audio/wav' });
   }
 }

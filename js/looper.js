@@ -33,6 +33,9 @@ async function initAudioManagerButtons() {
     stopButton.disabled = false;
   });
   stopButton.addEventListener('click', () => {
+    // You have to click "Stop" little bit after you are done with recording.
+    // Otherwise it truncates the end.
+    // I tried setting 100ms timeout here but then click sound gets recorded.
     audioManager.stopRecording();
     recordButton.disabled = false;
     stopButton.disabled = true;

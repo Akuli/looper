@@ -55,21 +55,54 @@ function connectMultiChannelToSpeaker(ctx, source) {
   return gainNodes;
 }
 
+class FloatArrayCopier {
+  constructor(sourceData, destData, initialDestOffset) {
+    this.sourceData = sourceData;
+    this.destData = destData;
+    this.sourceOffset = 0;
+    this.destOffset = initialDestOffset % destData.length;
+  }
+
+  copyChunk(canOverlapPreviousLayers) {
+    const leftInSource = this.sourceData.length - this.sourceOffset;
+    const fitsInDest = this.destData.length - this.destOffset;
+    const fitsInDestWithOneLayer = this.destData.length - this.sourceOffset;
+
+    let howMuchToCopy;
+    if (canOverlapPreviousLayers) {
+      howMuchToCopy = Math.min(leftInSource, fitsInDest);
+    } else {
+      howMuchToCopy = Math.min(leftInSource, fitsInDest, fitsInDestWithOneLayer);
+    }
+
+    if (howMuchToCopy <= 0) {
+      return false;
+    }
+
+    if (canOverlapPreviousLayers) {
+      for (let n = 0; n < howMuchToCopy; n++) {
+        this.destData[this.destOffset + n] += this.sourceData[this.sourceOffset + n];
+      }
+    } else {
+      this.destData.set(this.sourceData.slice(this.sourceOffset, this.sourceOffset + howMuchToCopy), this.destOffset);
+    }
+
+    this.sourceOffset += howMuchToCopy;
+    this.destOffset = (this.destOffset + howMuchToCopy) % this.destData.length;
+    return true;
+  }
+
+  copyAll() {
+    while (this.copyChunk(false)) { }   // Faster
+    while (this.copyChunk(true)) { }    // Works even when source is longer than dest
+  }
+}
+
 // Handles wrapping over the end
 function copyAndWrap(startTime, sourceData, destData) {
   startTime -= (+document.getElementById("lagCompensationSlider").value) / 1000;
-  let sourceOffset = 0;
-  let destinationOffset = Math.round(startTime*SAMPLE_RATE) % destData.length;
-
-  while (sourceOffset < sourceData.length) {
-    const dataLeftToCopy = sourceData.length - sourceOffset;
-    const roomForData = destData.length - destinationOffset;
-    const howMuchToCopy = Math.min(dataLeftToCopy, roomForData);
-    destData.set(sourceData.slice(sourceOffset, sourceOffset + howMuchToCopy), destinationOffset);
-    sourceOffset += howMuchToCopy;
-    destinationOffset += howMuchToCopy;
-    destinationOffset %= destData.length;
-  }
+  const copier = new FloatArrayCopier(sourceData, destData, Math.round(startTime*SAMPLE_RATE));
+  copier.copyAll();
 }
 
 function asciiToArrayBuffer(asciiString) {

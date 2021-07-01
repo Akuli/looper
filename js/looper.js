@@ -10,11 +10,12 @@ function initLagCompensation() {
     window.localStorage.lagCompensation = value;
   }
 
-  lagCompensationSlider.addEventListener('input', event => saveAndSyncValue(+event.target.value));
-  lagCompensationEntry.addEventListener('input', event => saveAndSyncValue(+event.target.value));
-
   const valueOnMySystem = 130;
   saveAndSyncValue(+(window.localStorage.lagCompensation || valueOnMySystem));
+
+  // Must be after setting value, otherwise can reset to zero in some rare situations
+  lagCompensationSlider.addEventListener('input', event => saveAndSyncValue(+event.target.value));
+  lagCompensationEntry.addEventListener('input', event => saveAndSyncValue(+event.target.value));
 }
 
 async function initAudioManagerButtons() {

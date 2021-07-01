@@ -1,50 +1,3 @@
-// TODO: clean up, no need for class
-class Visualizer {
-  constructor(canvas, sampleCount) {
-    this.canvas = canvas;
-    this._canvasCtx = canvas.getContext('2d');
-    this._canvasCtx.strokeStyle = '#00cc00';
-    this._sampleCount = sampleCount;
-    this._sampleOffset = null;
-    this._gain = null;
-  }
-
-  draw(initialOffset, sampleArray, gain) {
-    this._canvasCtx.clearRect(0, 0, 100000, 100000);
-
-    this._canvasCtx.lineWidth = 1;
-    this._canvasCtx.beginPath();
-    this._canvasCtx.moveTo(0, this.canvas.height / 2);
-    this._canvasCtx.lineTo(this.canvas.width, this.canvas.height / 2);
-    this._canvasCtx.stroke();
-
-    this._canvasCtx.lineWidth = 4;  // it can be very squeezed horizontally
-    this._sampleOffset = initialOffset;
-
-    const xMin = Math.floor((this._sampleOffset / this._sampleCount) * this.canvas.width);
-    this._sampleOffset += sampleArray.length;
-    const xMax = Math.floor((this._sampleOffset / this._sampleCount) * this.canvas.width);
-    const chunkWidth = xMax - xMin;
-
-    this._canvasCtx.beginPath();
-    for (let x = 0; x < chunkWidth; x++) {
-      const sliceStart = Math.floor(this._sampleCount * x/this.canvas.width);
-      const sliceEnd = Math.floor(this._sampleCount * (x+1)/this.canvas.width);
-      const samples = sampleArray.slice(sliceStart, sliceEnd);
-
-      // rms is like average, but describes audio volume better
-      // https://en.wikipedia.org/wiki/Root_mean_square
-      const rms = Math.sqrt(samples.map(a => a*a).reduce((a, b) => a+b) / samples.length);
-      const volume = gain*rms;
-
-      const xCanvas = (xMin + x) % this.canvas.width;
-      this._canvasCtx.moveTo(xCanvas, (1 - volume)*this.canvas.height/2);
-      this._canvasCtx.lineTo(xCanvas, (1 + volume)*this.canvas.height/2);
-    }
-    this._canvasCtx.stroke();
-  }
-}
-
 export class Track {
   constructor(channel, beatCount, label) {
     this.channel = channel;
@@ -91,7 +44,9 @@ export class Track {
     });
     this._updateDeleteButton();
 
-    this.visualizer = new Visualizer(this.div.querySelector('canvas'), this.channel.floatArray.length);
+    this.canvas = this.div.querySelector('canvas');
+    this._canvasCtx = this.canvas.getContext('2d');
+    this._canvasCtx.strokeStyle = '#00cc00';
 
     document.getElementById('tracks').appendChild(this.div);
   }
@@ -124,6 +79,33 @@ export class Track {
 
   // It's also fine to access visualizer directly outside this class
   redrawCanvas() {
-    this.visualizer.draw(0, this.channel.floatArray, this._getGain());
+    this._canvasCtx.clearRect(0, 0, 100000, 100000);
+
+    this._canvasCtx.lineWidth = 1;
+    this._canvasCtx.beginPath();
+    this._canvasCtx.moveTo(0, this.canvas.height / 2);
+    this._canvasCtx.lineTo(this.canvas.width, this.canvas.height / 2);
+    this._canvasCtx.stroke();
+
+    this._canvasCtx.lineWidth = 4;  // it can be very squeezed horizontally
+
+    const gain = this._getGain();
+    const allSamples = this.channel.floatArray;
+
+    this._canvasCtx.beginPath();
+    for (let x = 0; x < this.canvas.width; x++) {
+      const sliceStart = Math.floor(allSamples.length * x/this.canvas.width);
+      const sliceEnd = Math.floor(allSamples.length * (x+1)/this.canvas.width);
+      const relevantSamples = allSamples.slice(sliceStart, sliceEnd);
+
+      // rms is like average, but describes audio volume better
+      // https://en.wikipedia.org/wiki/Root_mean_square
+      const rms = Math.sqrt(relevantSamples.map(a => a*a).reduce((a, b) => a+b) / relevantSamples.length);
+      const volume = gain*rms;
+
+      this._canvasCtx.moveTo(x, (1 - volume)*this.canvas.height/2);
+      this._canvasCtx.lineTo(x, (1 + volume)*this.canvas.height/2);
+    }
+    this._canvasCtx.stroke();
   }
 }

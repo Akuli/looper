@@ -191,24 +191,28 @@ export class AudioManager {
     const chunks = [];
     this.mediaRecorder.ondataavailable = async(event) => {
       chunks.push(event.data);
+
+      // Two reasons to update the channel here:
+      //    * It gets visualized right away
+      //    * You can hear it right away, useful when you record longer than one loop length
+      //
+      // You can't use only the latest chunk, because audio data format needs previous chunks too.
       const arrayBuffer = await blobToArrayBuffer(new Blob(chunks));
       const audioBuffer = await arrayBufferToAudioBuffer(this.ctx, arrayBuffer);
-      track.visualizer.draw(copyOffset, audioBuffer.getChannelData(0), 1);
+      track.channel.floatArray.fill(0);
+      new FloatArrayCopier(audioBuffer.getChannelData(0), track.channel.floatArray, copyOffset).copyAll();
+      track.redrawCanvas();
     };
 
-    const drawInterval = setInterval(() => this.mediaRecorder.requestData(), 200);
+    // Occationally flush audio to chunks array (and to the channel)
+    const flushInterval = window.setInterval(() => this.mediaRecorder.requestData(), 200);
 
     this.mediaRecorder.onstop = async () => {
-      console.log(`Stop: ${chunks.length} chunks`);
-      clearInterval(drawInterval);
-      const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });  // TODO: second arg needed?
-      const audioBuffer = await arrayBufferToAudioBuffer(this.ctx, await blobToArrayBuffer(blob));
+      window.clearInterval(flushInterval);
+      track.channel.gainNode.value = 1;
 
       track.nameInput.value = `Track ${track.channel.num}`;
       track.div.classList.remove("recording");
-
-      new FloatArrayCopier(audioBuffer.getChannelData(0), track.channel.floatArray, copyOffset).copyAll();
-      track.redrawCanvas();
     };
 
     this.mediaRecorder.start();
@@ -227,7 +231,7 @@ export class AudioManager {
       indicator.classList.remove("hidden");
 
       const trackDiv = document.getElementById('tracks');
-      const canvas = this.tracks[0].visualizer.canvas;  // Only x coordinates used, assume lined up
+      const canvas = this.tracks[0].canvas;  // Only x coordinates used, assume lined up
 
       // I also tried css variables and calc(), consumed more cpu that way
       const ratio = (this.ctx.currentTime / this.loopAudioBuffer.duration) % 1;

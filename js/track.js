@@ -29,11 +29,11 @@ export class Track {
     <button class="deleteTrackButton">Delete</button>
     `
 
-    this.trackNameInput = this.div.querySelector('input.trackName');
+    this.nameInput = this.div.querySelector('input.trackName');
     this.volumeSlider = this.div.querySelector('.volumeSlider');
     this.deleteButton = this.div.querySelector('.deleteTrackButton');
 
-    this.trackNameInput.value = label || `Track ${channel.num}`;
+    this.nameInput.value = label;
 
     // change triggers less often than input, only when cursor lifts up
     this.volumeSlider.addEventListener('change', () => this.redrawCanvas());  // too slow for 'input'

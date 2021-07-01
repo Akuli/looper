@@ -136,10 +136,16 @@ export class AudioManager {
       floatArray: this.loopAudioBuffer.getChannelData(index),
     })).reverse();
 
-    this.micStreamDestination = this.ctx.createMediaStreamDestination();
-    const microphone = this.ctx.createMediaStreamSource(userMedia);
-    microphone.connect(this.micStreamDestination);
+    if (userMedia !== null) {
+      this.micStreamDestination = this.ctx.createMediaStreamDestination();
+      const microphone = this.ctx.createMediaStreamSource(userMedia);
+      microphone.connect(this.micStreamDestination);
+    } else {
+      this.micStreamDestination = null;
+    }
+
     this._showPlayIndicator();
+    this._recordingTrack = null;
   }
 
   async addMetronome() {
@@ -154,13 +160,13 @@ export class AudioManager {
     track.redrawCanvas();
   }
 
-  _addTrack(...args) {
+  _addTrack(name) {
     const channel = this.freeChannels.pop();
     if (channel === undefined) {
       throw new Error("no more free channels");
     }
 
-    const track = new Track(channel, this._beatsPerLoop, ...args);
+    const track = new Track(channel, this._beatsPerLoop, name);
     track.deleteButton.addEventListener('click', () => this._deleteTrack(track));
     this.tracks.push(track);
     return track;
@@ -181,6 +187,9 @@ export class AudioManager {
   }
 
   startRecording() {
+    this._recordingTrack = this._addTrack("Recording...");
+    this._recordingTrack.div.classList.add("recording");
+
     const startTime = this.ctx.currentTime;
     this.mediaRecorder = new MediaRecorder(this.micStreamDestination.stream)
     const chunks = [];
@@ -189,7 +198,12 @@ export class AudioManager {
       const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
       const arrayBuffer = await blobToArrayBuffer(blob);
       const audioBuffer = await arrayBufferToAudioBuffer(this.ctx, arrayBuffer);
-      const track = this._addTrack();
+
+      const track = this._recordingTrack;
+      this._recordingTrack = null;
+      track.nameInput.value = `Track ${track.channel.num}`;
+      track.div.classList.remove("recording");
+
       copyAndWrap(startTime, audioBuffer.getChannelData(0), track.channel.floatArray);
       track.redrawCanvas();
     };

@@ -6,9 +6,8 @@
     <script type="module" src="js/looper.js"></script>
   </head>
   <body>
-    <div id="buttonFrame">
-      <button class="big" id="record">Record</button>
-      <button class="big" id="stop" disabled>Stop</button>
+    <div class="centerer">
+      <button class="big" id="recordOrStop">Record</button>
     </div>
 
     <div id="playIndicator"></div>
@@ -25,7 +24,7 @@
           type="range"
           id="lagCompensationSlider"
           min="0"
-          max="200"
+          max="250"
           step="10"
           >
         <input
@@ -37,7 +36,7 @@
       </div>
     </div>
 
-    <div id="wavButtonContainer">
+    <div class="centerer">
       <button id="wavButton" class="big">Export WAV</button>
     </div>
   </body>

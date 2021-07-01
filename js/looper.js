@@ -20,25 +20,30 @@ function initLagCompensation() {
 async function initAudioManagerButtons() {
   const urlParams = new URLSearchParams(window.location.search);
 
-  const userMedia = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const recordOrStopButton = document.getElementById('recordOrStop');
+
+  let userMedia = null;
+  try {
+    userMedia = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    console.log(e);
+    recordOrStopButton.disabled = true;
+    recordOrStopButton.title = "No microphone detected";
+  }
   const audioManager = new AudioManager(userMedia, +urlParams.get("bpm"), +urlParams.get("beatCount"));
   await audioManager.addMetronome();
 
-  const recordButton = document.getElementById('record');
-  const stopButton = document.getElementById('stop');
-
-  recordButton.addEventListener('click', () => {
-    audioManager.startRecording();
-    recordButton.disabled = true;
-    stopButton.disabled = false;
-  });
-  stopButton.addEventListener('click', () => {
-    // You have to click "Stop" little bit after you are done with recording.
-    // Otherwise it truncates the end.
-    // I tried setting 100ms timeout here but then click sound gets recorded.
-    audioManager.stopRecording();
-    recordButton.disabled = false;
-    stopButton.disabled = true;
+  recordOrStopButton.addEventListener('click', () => {
+    if (recordOrStopButton.textContent === "Record") {
+      audioManager.startRecording();
+      recordOrStopButton.textContent = "Stop recording";
+    } else {
+      // You have to click "Stop" little bit after you are done with recording.
+      // Otherwise it truncates the end.
+      // I tried setting 100ms timeout here but then click sound gets recorded.
+      audioManager.stopRecording();
+      recordOrStopButton.textContent = "Record";
+    }
   });
 
   document.getElementById('wavButton').addEventListener('click', () => {

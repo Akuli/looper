@@ -55,6 +55,7 @@ function connectMultiChannelToSpeaker(ctx, source) {
   return gainNodes;
 }
 
+// Handles overlapping when source is longer than destination
 class FloatArrayCopier {
   constructor(sourceData, destData, initialDestOffset) {
     this.sourceData = sourceData;
@@ -98,13 +99,6 @@ class FloatArrayCopier {
   }
 }
 
-// Handles wrapping over the end
-function copyAndWrap(startTime, sourceData, destData) {
-  startTime -= (+document.getElementById("lagCompensationSlider").value) / 1000;
-  const copier = new FloatArrayCopier(sourceData, destData, Math.round(startTime*SAMPLE_RATE));
-  copier.copyAll();
-}
-
 function asciiToArrayBuffer(asciiString) {
   return new Uint8Array([...asciiString].map(c => c.charCodeAt(0))).buffer;
 }
@@ -145,7 +139,6 @@ export class AudioManager {
     }
 
     this._showPlayIndicator();
-    this._recordingTrack = null;
   }
 
   async addMetronome() {
@@ -187,26 +180,37 @@ export class AudioManager {
   }
 
   startRecording() {
-    this._recordingTrack = this._addTrack("Recording...");
-    this._recordingTrack.div.classList.add("recording");
+    const track = this._addTrack("Recording...");
+    track.div.classList.add("recording");
 
-    const startTime = this.ctx.currentTime;
-    this.mediaRecorder = new MediaRecorder(this.micStreamDestination.stream)
+    const startTime = this.ctx.currentTime - 0.001*+document.getElementById("lagCompensationSlider").value;
+    const copyOffset = Math.round(startTime*SAMPLE_RATE);
+
+    this.mediaRecorder = new MediaRecorder(this.micStreamDestination.stream);
+
     const chunks = [];
-    this.mediaRecorder.ondataavailable = event => chunks.push(event.data);
-    this.mediaRecorder.onstop = async () => {
-      const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
-      const arrayBuffer = await blobToArrayBuffer(blob);
+    this.mediaRecorder.ondataavailable = async(event) => {
+      chunks.push(event.data);
+      const arrayBuffer = await blobToArrayBuffer(new Blob(chunks));
       const audioBuffer = await arrayBufferToAudioBuffer(this.ctx, arrayBuffer);
+      track.visualizer.draw(copyOffset, audioBuffer.getChannelData(0), 1);
+    };
 
-      const track = this._recordingTrack;
-      this._recordingTrack = null;
+    const drawInterval = setInterval(() => this.mediaRecorder.requestData(), 200);
+
+    this.mediaRecorder.onstop = async () => {
+      console.log(`Stop: ${chunks.length} chunks`);
+      clearInterval(drawInterval);
+      const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });  // TODO: second arg needed?
+      const audioBuffer = await arrayBufferToAudioBuffer(this.ctx, await blobToArrayBuffer(blob));
+
       track.nameInput.value = `Track ${track.channel.num}`;
       track.div.classList.remove("recording");
 
-      copyAndWrap(startTime, audioBuffer.getChannelData(0), track.channel.floatArray);
+      new FloatArrayCopier(audioBuffer.getChannelData(0), track.channel.floatArray, copyOffset).copyAll();
       track.redrawCanvas();
     };
+
     this.mediaRecorder.start();
   }
 
@@ -223,7 +227,7 @@ export class AudioManager {
       indicator.classList.remove("hidden");
 
       const trackDiv = document.getElementById('tracks');
-      const canvas = this.tracks[0].canvas;
+      const canvas = this.tracks[0].visualizer.canvas;  // Only x coordinates used, assume lined up
 
       // I also tried css variables and calc(), consumed more cpu that way
       const ratio = (this.ctx.currentTime / this.loopAudioBuffer.duration) % 1;
@@ -242,7 +246,6 @@ export class AudioManager {
     for (const track of this.tracks) {
       const gain = track.channel.gainNode.gain.value;
       const sourceArray = track.channel.floatArray;
-      console.log(gain);
       for (let i = 0; i < n; i++) {
         combinedArray[i] += gain*sourceArray[i];
       }

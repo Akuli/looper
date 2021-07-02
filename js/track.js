@@ -131,7 +131,7 @@ export class TrackManager {
 
     const track = new Track(channel, this.audioManager.beatsPerLoop, true);
     track.nameInput.value = name;
-    track.deleteButton.addEventListener('click', () => this._deleteTrack(track));
+    track.deleteButton.addEventListener('click', () => this.deleteTrack(track));
     this.tracks.push(track);
     return track;
   }
@@ -145,7 +145,7 @@ export class TrackManager {
 
     track.channel.floatArray.fill(0);
     track.channel.gainNode.gain.value = 1;
-    this.freeChannels.push(track.channel);
+    this.audioManager.freeChannels.push(track.channel);
 
     track.div.remove();
     await firestore.deleteTrack(track);

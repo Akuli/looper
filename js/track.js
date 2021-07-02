@@ -1,6 +1,8 @@
 export class Track {
-  constructor(channel, beatCount, label) {
+  constructor(channel, beatCount, createdByCurrentUser) {
     this.channel = channel;
+    this.createdByCurrentUser = createdByCurrentUser;
+    this.firestoreId = null;
 
     // Metronome looks a lot better if width is multiple of beatCount
     const canvasWidth = Math.ceil(1000 / beatCount) * beatCount;
@@ -27,13 +29,11 @@ export class Track {
     </div>
     <canvas width="${canvasWidth}" height="${canvasHeight}" style="height: ${canvasHeight}px;"></canvas>
     <button class="deleteTrackButton">Delete</button>
-    `
+    `;
 
     this.nameInput = this.div.querySelector('input.trackName');
     this.volumeSlider = this.div.querySelector('.volumeSlider');
     this.deleteButton = this.div.querySelector('.deleteTrackButton');
-
-    this.nameInput.value = label;
 
     // change triggers less often than input, only when cursor lifts up
     this.volumeSlider.addEventListener('change', () => this.redrawCanvas());  // too slow for 'input'
@@ -52,13 +52,15 @@ export class Track {
   }
 
   _updateDeleteButton() {
-    if (this._getGain() > 0) {
-      this.deleteButton.disabled = true;
+    if (!this.createdByCurrentUser) {
+      this.deleteButton.title = "You can't delete this track because you didn't create it";
+    } else if (this._getGain() > 0) {
       this.deleteButton.title = "Set volume to zero first";
     } else {
-      this.deleteButton.disabled = false;
       this.deleteButton.title = "";
     }
+
+    this.deleteButton.disabled = !!this.deleteButton.title;
   }
 
   _getGain() {

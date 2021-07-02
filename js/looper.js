@@ -1,4 +1,5 @@
 import { AudioManager } from './audioManager.js';
+import * as firestore from './firestore.js';
 
 function initLagCompensation() {
   const slider = document.getElementById("lagCompensationSlider");
@@ -18,9 +19,7 @@ function initLagCompensation() {
   lagCompensationEntry.addEventListener('input', event => saveAndSyncValue(+event.target.value));
 }
 
-async function initAudioManagerButtons() {
-  const urlParams = new URLSearchParams(window.location.search);
-
+async function initAudioManager(bpm, beatCount) {
   const recordOrStopButton = document.getElementById('recordOrStop');
 
   let userMedia = null;
@@ -28,10 +27,9 @@ async function initAudioManagerButtons() {
     userMedia = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (e) {
     console.log(e);
-    recordOrStopButton.disabled = true;
-    recordOrStopButton.title = "No microphone detected";
   }
-  const audioManager = new AudioManager(userMedia, +urlParams.get("bpm"), +urlParams.get("beatCount"));
+
+  const audioManager = new AudioManager(userMedia, bpm, beatCount);
   await audioManager.addMetronome();
 
   recordOrStopButton.addEventListener('click', () => {
@@ -55,9 +53,21 @@ async function initAudioManagerButtons() {
     downloadLink.download = "loop.wav";
     downloadLink.click();
   });
+
+  return (userMedia !== null);
 }
 
 document.addEventListener('DOMContentLoaded', async() => {
   initLagCompensation();
-  await initAudioManagerButtons();
+  const { bpm, beatCount } = await firestore.init();
+  const canRecord = await initAudioManager(bpm, beatCount);
+
+  // Must be after all other initialization, so that user can't record before ready
+  document.getElementById('wavButton').disabled = false;
+  if (canRecord) {
+    document.getElementById('recordOrStop').disabled = false;
+  } else {
+    // leave it disabled
+    recordOrStopButton.title = "No microphone detected";
+  }
 });

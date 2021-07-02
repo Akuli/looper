@@ -6,8 +6,27 @@
     <script type="module" src="js/looper.js"></script>
   </head>
   <body>
+    <!--
+    Copy/pasted from firebase console
+    The core Firebase JS SDK is always required and must be listed first
+    -->
+    <script src="https://www.gstatic.com/firebasejs/8.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.7.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.7.0/firebase-firestore.js"></script>
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyC9NZ0cMPeQnQXYC9yfUz4YYs-5cRqs9bM",
+        authDomain: "looper-6b9c2.firebaseapp.com",
+        projectId: "looper-6b9c2",
+        storageBucket: "looper-6b9c2.appspot.com",
+        messagingSenderId: "571407035019",
+        appId: "1:571407035019:web:8e2f0f83db9a074874428e"
+      };
+      firebase.initializeApp(firebaseConfig);
+    </script>
+
     <div class="centerer">
-      <button class="big" id="recordOrStop">Record</button>
+      <button class="big" id="recordOrStop" disabled>Record</button>
     </div>
 
     <div id="playIndicator"></div>
@@ -37,7 +56,7 @@
     </div>
 
     <div class="centerer">
-      <button id="wavButton" class="big">Export WAV</button>
+      <button id="wavButton" class="big" disabled>Export to WAV file</button>
     </div>
   </body>
 </html>

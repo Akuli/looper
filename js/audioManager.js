@@ -1,6 +1,5 @@
 import { Track } from './track.js';
-
-const SAMPLE_RATE = 44100;
+import * as firestore from './firestore.js';
 
 // I read somewhere that some spec requires 32 channels to work. Don't remember where. Sorry.
 const MAX_TRACKS = 32;
@@ -104,15 +103,15 @@ function asciiToArrayBuffer(asciiString) {
 }
 
 export class AudioManager {
-  constructor(userMedia, beatsPerMinute, beatsPerLoop) {
-    const beatsPerSecond = beatsPerMinute / 60;
-    this._samplesPerBeat = Math.round(SAMPLE_RATE / beatsPerSecond);
+  constructor(userMedia, bpm, beatsPerLoop) {
+    this.ctx = new AudioContext({ sampleRate: 44100 });
+
+    this._samplesPerBeat = Math.round(this.ctx.sampleRate / (bpm/60));
     this._beatsPerLoop = beatsPerLoop
 
-    this.ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
     this.loopAudioBuffer = new AudioBuffer({
       length: this._samplesPerBeat * beatsPerLoop,
-      sampleRate: SAMPLE_RATE,
+      sampleRate: this.ctx.sampleRate,
       numberOfChannels: MAX_TRACKS,
     });
 
@@ -126,7 +125,7 @@ export class AudioManager {
     this.tracks = [];
     this.freeChannels = gainNodes.map((node, index) => ({
       gainNode: node,
-      num: index,  // TODO: still needed?
+      num: index,
       floatArray: this.loopAudioBuffer.getChannelData(index),
     })).reverse();
 
@@ -144,13 +143,14 @@ export class AudioManager {
   async addMetronome() {
     const arrayBuffer = await downloadBinaryFileAsArrayBuffer('/metronome.flac');
     const audioBuffer = await arrayBufferToAudioBuffer(this.ctx, arrayBuffer);
-    const track = this._addTrack("Metronome");
+    const tick = audioBuffer.getChannelData(0).slice(0, this._samplesPerBeat);
 
-    const chunkSize = this._samplesPerBeat;
-    for (let beatNumber = 0; beatNumber < this._beatsPerLoop; beatNumber++) {
-      track.channel.floatArray.set(audioBuffer.getChannelData(0).slice(0, chunkSize), beatNumber*chunkSize);
+    const track = this._addTrack("Metronome");
+    for (let offset = 0; offset < track.channel.floatArray.length; offset += this._samplesPerBeat) {
+      track.channel.floatArray.set(tick, offset);
     }
     track.redrawCanvas();
+    await firestore.addTrack(track);
   }
 
   _addTrack(name) {
@@ -159,13 +159,14 @@ export class AudioManager {
       throw new Error("no more free channels");
     }
 
-    const track = new Track(channel, this._beatsPerLoop, name);
+    const track = new Track(channel, this._beatsPerLoop, true);
+    track.nameInput.value = name;
     track.deleteButton.addEventListener('click', () => this._deleteTrack(track));
     this.tracks.push(track);
     return track;
   }
 
-  _deleteTrack(track) {
+  async _deleteTrack(track) {
     const index = this.tracks.indexOf(track);
     if (index === -1) {
       throw new Error("this shouldn't happen");
@@ -177,6 +178,7 @@ export class AudioManager {
     this.freeChannels.push(track.channel);
 
     track.div.remove();
+    await firestore.deleteTrack(track);
   }
 
   startRecording() {
@@ -184,11 +186,11 @@ export class AudioManager {
     track.div.classList.add("recording");
 
     const startTime = this.ctx.currentTime - 0.001*+document.getElementById("lagCompensationSlider").value;
-    const copyOffset = Math.round(startTime*SAMPLE_RATE);
+    const copyOffset = Math.round(startTime*this.loopAudioBuffer.sampleRate);
 
     this.mediaRecorder = new MediaRecorder(this.micStreamDestination.stream);
 
-    const chunks = [];
+    const chunks = [];  // contains blobs
     this.mediaRecorder.ondataavailable = async(event) => {
       chunks.push(event.data);
 
@@ -209,10 +211,9 @@ export class AudioManager {
 
     this.mediaRecorder.onstop = async () => {
       window.clearInterval(flushInterval);
-      track.channel.gainNode.value = 1;
-
       track.nameInput.value = `Track ${track.channel.num}`;
       track.div.classList.remove("recording");
+      await firestore.addTrack(track);
     };
 
     this.mediaRecorder.start();
@@ -244,7 +245,7 @@ export class AudioManager {
   }
 
   getWavBlob() {
-    const n = this.loopAudioBuffer.length
+    const n = this.loopAudioBuffer.length;
     const combinedArray = new Float32Array(n);
 
     for (const track of this.tracks) {
@@ -273,8 +274,8 @@ export class AudioManager {
       new Uint32Array([16]).buffer,
       new Uint16Array([1]).buffer,
       new Uint16Array([1]).buffer,
-      new Uint32Array([SAMPLE_RATE]).buffer,
-      new Uint32Array([2*SAMPLE_RATE]).buffer,
+      new Uint32Array([this.loopAudioBuffer.sampleRate]).buffer,
+      new Uint32Array([2*this.loopAudioBuffer.sampleRate]).buffer,
       new Uint16Array([2]).buffer,
       new Uint16Array([16]).buffer,
       asciiToArrayBuffer("data"),

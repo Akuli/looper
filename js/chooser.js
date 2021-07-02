@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('startButton').addEventListener('click', () => {
     const bpm = +document.getElementById('bpmEntry').value;
     const beatCount = +document.getElementById('beatCountEntry').value;
-    window.location.href = `${window.location.origin}/looper.html#${bpm},${beatCount}`;
+    const rootPath = window.location.pathname.replace(/\/index.html$/, '').replace(/\/$/, '');
+    window.location.href = `${window.location.origin}${rootPath}/looper.html#${bpm},${beatCount}`;
   });
 });

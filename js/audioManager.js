@@ -169,6 +169,7 @@ export class AudioManager {
   }
 
   async addMetronomeTicks(track) {
+    // wav seems to be quite cross-browser, works on firefox and chromium
     const baseUrl = window.location.pathname.replace(/[^\/]*\/looper.html$/, '');
     const arrayBuffer = await downloadBinaryFileAsArrayBuffer(baseUrl + 'metronome.wav');
     const audioBuffer = await arrayBufferToAudioBuffer(this._ctx, arrayBuffer);

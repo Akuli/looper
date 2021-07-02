@@ -19,4 +19,4 @@ TODO:
 - darker css?
 
 Sources:
-- metronome.flac: downloaded from https://freesound.org/people/unfa/sounds/243749/
+- metronome.wav: downloaded and converted from https://freesound.org/people/unfa/sounds/243749/

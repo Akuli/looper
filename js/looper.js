@@ -1,6 +1,8 @@
-import { AudioManager } from './audioManager.js';
 import * as firestore from './firestore.js';
+import { AudioManager } from './audioManager.js';
 import { TrackManager } from './track.js';
+import { translate } from './translate.js';
+
 
 function initLagCompensation() {
   const slider = document.getElementById("lagCompensationSlider");
@@ -34,15 +36,15 @@ async function initAudioManager(bpm, beatCount) {
   const trackManager = new TrackManager(new AudioManager(userMedia, bpm, beatCount))
 
   recordOrStopButton.addEventListener('click', () => {
-    if (recordOrStopButton.textContent === "Record") {
+    if (recordOrStopButton.textContent === translate("Record")) {
       trackManager.startRecording();
-      recordOrStopButton.textContent = "Stop recording";
+      recordOrStopButton.textContent = translate("Stop recording");
     } else {
       // You have to click "Stop" little bit after you are done with recording.
       // Otherwise it truncates the end.
       // I tried setting 100ms timeout here but then click sound gets recorded.
       trackManager.stopRecording();
-      recordOrStopButton.textContent = "Record";
+      recordOrStopButton.textContent = translate("Record");
     }
   });
 

@@ -17,7 +17,7 @@ async function arrayBufferToAudioBuffer(ctx, arrayBuffer) {
 
 async function downloadBinaryFileAsArrayBuffer(fileUrl) {
   const xhr = new XMLHttpRequest();
-  xhr.open("GET", fileUrl);
+  xhr.open('GET', fileUrl);
   xhr.responseType = 'arraybuffer';
 
   await new Promise(resolve => {
@@ -151,7 +151,7 @@ export class AudioManager {
       throw new Error("already recording");
     }
 
-    const startTime = this._ctx.currentTime - 0.001*+document.getElementById("lagCompensationSlider").value;
+    const startTime = this._ctx.currentTime - 0.001*+document.getElementById('lagCompensationSlider').value;
     const copyOffset = Math.round(startTime*this._loopAudioBuffer.sampleRate);
 
     this._recordState = {
@@ -218,9 +218,9 @@ export class AudioManager {
 
     // Based on source code of Python's wave module
     const chunks = [
-      asciiToArrayBuffer("RIFF"),
+      asciiToArrayBuffer('RIFF'),
       new Uint32Array([36 + 2*n]).buffer,
-      asciiToArrayBuffer("WAVEfmt "),
+      asciiToArrayBuffer('WAVEfmt '),
       new Uint32Array([16]).buffer,
       new Uint16Array([1]).buffer,
       new Uint16Array([1]).buffer,
@@ -228,7 +228,7 @@ export class AudioManager {
       new Uint32Array([2*this._loopAudioBuffer.sampleRate]).buffer,
       new Uint16Array([2]).buffer,
       new Uint16Array([16]).buffer,
-      asciiToArrayBuffer("data"),
+      asciiToArrayBuffer('data'),
       new Uint16Array([2*n]).buffer,  // TODO: is this correct? usually 2*n doesn't fit in 16 bits
       audioDataInt16.buffer,
     ];

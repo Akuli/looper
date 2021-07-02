@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="fi">
   <head>
-    <link rel="stylesheet" href="css/common.css"></link>
-    <link rel="stylesheet" href="css/looper.css"></link>
-    <script type="module" src="js/looper.js"></script>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../css/common.css"></link>
+    <link rel="stylesheet" href="../css/looper.css"></link>
+    <script type="module" src="../js/looper.js"></script>
   </head>
   <body>
     <!--
@@ -26,7 +27,7 @@
     </script>
 
     <div class="centerer">
-      <button class="big" id="recordOrStop" disabled>Record</button>
+      <button class="big" id="recordOrStop" disabled>Äänitä</button>
     </div>
 
     <div id="playIndicator"></div>
@@ -34,11 +35,11 @@
 
     <div>
       <p>
-        Adjust the slider below if your recordings are not in sync with everything else.
-        A bigger value makes your recordings come earlier.
+        Säädä alla olevaa slaideria jos äänityksesi eivät ole synkassa muiden äänien kanssa.
+        Suurempi arvo tarkoittaa, että äänityksesi tulee aikaisemmin.
       </p>
       <div id="lagDiv">
-        <label for="lagCompensationSlider">Lag compensation:</label>
+        <label for="lagCompensationSlider">Lägikompensaatio:</label>
         <input
           type="range"
           id="lagCompensationSlider"
@@ -56,14 +57,14 @@
     </div>
 
     <div class="centerer">
-      <button id="wavButton" class="big" disabled>Export to WAV file</button>
+      <button id="wavButton" class="big" disabled>Tallenna WAV-tiedostona</button>
     </div>
 
     <small>
-      Disclaimer:
-      Don't record anything too secret.
-      Anyone with a link to this page can listen to what you recorded,
-      and I can see a list of all links.
+      Disklaimeri:
+      Älä äänitä mitään liian salaista.
+      Kuka tahansa voi kuunnella äänityksiäsi linkillä tälle sivulle,
+      ja minä näen kaikki linkit.
     </small>
   </body>
 </html>

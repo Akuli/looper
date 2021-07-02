@@ -22,7 +22,7 @@ The rules I use:
 
 const firestore = firebase.firestore();
 const auth = firebase.auth();
-const loopsCollection = firestore.collection("/loops");
+const loopsCollection = firestore.collection('/loops');
 let loopDocument;
 
 export async function init() {
@@ -33,14 +33,14 @@ export async function init() {
 
   // Can't use query params because changing them causes a reload
   let bpm, beatCount;
-  const createdNewLoop = window.location.hash.includes(",");
+  const createdNewLoop = window.location.hash.includes(',');
   if (createdNewLoop) {
-    [bpm, beatCount] = window.location.hash.replace("#", "").split(",").map(val => +val);
+    [bpm, beatCount] = window.location.hash.replace('#', '').split(',').map(val => +val);
     loopDocument = await loopsCollection.add({ bpm, beatCount });
     window.location.hash = '#' + loopDocument.id;
   } else {
     // Use existing loop
-    loopDocument = await loopsCollection.doc(window.location.hash.replace("#", ""));
+    loopDocument = await loopsCollection.doc(window.location.hash.replace('#', ''));
     // Somehow nice unpacking syntax doesn't work
     const data = (await loopDocument.get()).data()
     bpm = data.bpm;
@@ -55,14 +55,15 @@ export async function addTrack(track) {
     throw new Error("can't add track, already added?");
   }
 
-  const trackDocument = await loopDocument.collection('tracks').add({
+  const value = {
     name: track.nameInput.value,
     audioBlob: firebase.firestore.Blob.fromUint8Array(new Uint8Array(track.channel.floatArray.buffer)),
     createTime: track.createTime,
     creator: auth.getUid(),
-  });
+  };
+  const trackDocument = await loopDocument.collection('tracks').add(value);
   track.firestoreId = trackDocument.id;
-  console.log("Added track: " + trackDocument.id);
+  console.log(`Added track: ${trackDocument.id} ${value.name}`);
 }
 
 export async function onNameChanged(track, name) {

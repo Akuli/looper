@@ -14,7 +14,7 @@ function handleTap(event) {
   if (tapTimes.length === 0 || event.timeStamp - tapTimes.slice(-1)[0] > 2000) {
     // It's been more than 2 seconds since the previous tap. Start over.
     tapTimes = [event.timeStamp]
-    document.getElementById('bpmEntry').value = "";
+    document.getElementById('bpmEntry').value = '';
   } else {
     // We have enough tap times to calculate average bpm
     tapTimes.push(event.timeStamp);
@@ -30,7 +30,7 @@ function handleTap(event) {
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('bpmButton').addEventListener('click', handleTap);
   document.body.addEventListener('keypress', event => {
-    if (! ["input", "button"].includes(event.target.nodeName.toLowerCase())) {
+    if (! ['input', 'button'].includes(event.target.nodeName.toLowerCase())) {
       handleTap(event);
     }
   });
@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('startButton').addEventListener('click', () => {
     const bpm = +document.getElementById('bpmEntry').value;
     const beatCount = +document.getElementById('beatCountEntry').value;
-    const rootPath = window.location.pathname.replace(/\/index.html$/, '').replace(/\/$/, '');
+    const rootPath = window.location.pathname.replace(/\/chooser.html$/, '');
     window.location.href = `${window.location.origin}${rootPath}/looper.html#${bpm},${beatCount}`;
   });
 });

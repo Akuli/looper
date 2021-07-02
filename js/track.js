@@ -1,4 +1,5 @@
 import * as firestore from './firestore.js';
+import { translate } from './translate.js';
 
 
 class Track {
@@ -22,7 +23,7 @@ class Track {
         onkeypress="if(event.key === 'Enter') event.target.blur();"
       ></input>
       <div class="trackVolumeContainer">
-        <label for="track${channel.num}_volume">Volume:</label>
+        <label for="track${channel.num}_volume">${translate("Volume")}:</label>
         <input
           type="range"
           class="volumeSlider"
@@ -32,7 +33,7 @@ class Track {
       </div>
     </div>
     <canvas width="${canvasWidth}" height="${canvasHeight}" style="height: ${canvasHeight}px;"></canvas>
-    <button class="deleteTrackButton">Delete</button>
+    <button class="deleteTrackButton">${translate("Delete")}</button>
     `;
 
     this.nameInput = this.div.querySelector('input.trackName');
@@ -55,9 +56,9 @@ class Track {
 
   _updateDisableds() {
     if (!this.createdByCurrentUser) {
-      this.deleteButton.title = "You can't delete this track because you didn't create it";
+      this.deleteButton.title = translate("You can't delete this track because you didn't create it");
     } else if (this._getGain() > 0) {
-      this.deleteButton.title = "Set volume to zero first";
+      this.deleteButton.title = translate("Set volume to zero first");
     } else {
       this.deleteButton.title = "";
     }
@@ -188,14 +189,14 @@ export class TrackManager {
   }
 
   startRecording() {
-    const track = this._addTrack("Recording...");
+    const track = this._addTrack(translate("Recording..."));
     track.div.classList.add("recording");
     this.audioManager.startRecording(track);
   }
 
   async stopRecording() {
     const track = this.audioManager.stopRecording();
-    track.nameInput.value = `Track ${track.channel.num}`;
+    track.nameInput.value = translate("Track") + " " + track.channel.num;
     track.div.classList.remove("recording");
     await firestore.addTrack(track);
   }
@@ -221,7 +222,7 @@ export class TrackManager {
   }
 
   async addMetronome() {
-    const track = this._addTrack("Metronome");
+    const track = this._addTrack(translate("Metronome"));
     await this.audioManager.addMetronomeTicks(track);
     await firestore.addTrack(track);
   }

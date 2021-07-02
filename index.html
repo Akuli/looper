@@ -1,25 +1,16 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <link rel="stylesheet" href="css/common.css"></link>
-    <link rel="stylesheet" href="css/chooser.css"></link>
-    <script type="module" src="js/chooser.js"></script>
   </head>
   <body>
-    <p>
-      Click the button several times in rhythm to choose the tempo and the length of the loop.
-      You can also press any key instead of clicking the button.
-    </p>
-    <button id="bpmButton" class="big">Click this many times</button>
-
-    <div id="inputDiv">
-      <label for="bpmEntry">Tempo:</label>
-      <input type="number" id="bpmEntry">
-      <span class="unit">beats per minute</span>
-      <label for="beatCountEntry">Loop duration:</label>
-      <input type="number" id="beatCountEntry">
-      <span class="unit">beats</span>
-    </div>
-    <button id="startButton" class="big" disabled>Start looping</button>
+    <script>
+    // Redirect to /fi/chooser.html or /en/chooser.html
+    const rootPath = window.location.pathname.replace(/\/index.html$/, '').replace(/\/$/, '');
+    if (navigator.languages.includes("fi")) {
+      window.location.href = `${window.location.origin}${rootPath}/fi/chooser.html`;
+    } else {
+      window.location.href = `${window.location.origin}${rootPath}/en/chooser.html`;
+    }
+    </script>
   </body>
 </html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="fi">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../css/common.css"></link>
+    <link rel="stylesheet" href="../css/chooser.css"></link>
+    <script type="module" src="../js/chooser.js"></script>
+  </head>
+  <body>
+    <p>
+      Valitse luupin tempo ja pituus klikkailemalla nappia monta kertaa rytmissä.
+      Voit myös painella mitä tahansa näppäintä.
+    </p>
+    <button id="bpmButton" class="big">Klikkaile tätä</button>
+
+    <div id="inputDiv">
+      <label for="bpmEntry">Tempo:</label>
+      <input type="number" id="bpmEntry">
+      <span class="unit">biittiä minuutissa (BPM)</span>
+      <label for="beatCountEntry">Loopin pituus:</label>
+      <input type="number" id="beatCountEntry">
+      <span class="unit">biittiä</span>
+    </div>
+    <button id="startButton" class="big" disabled>Aloita looppaus</button>
+  </body>
+</html>

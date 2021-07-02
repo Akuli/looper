@@ -28,10 +28,8 @@ async function downloadBinaryFileAsArrayBuffer(fileUrl) {
 }
 
 // returns array of GainNodes for adjusting volume
-function connectMultiChannelToSpeaker(ctx, source) {
+function connectMultiChannelToSpeaker(ctx) {
   const splitter = ctx.createChannelSplitter(MAX_TRACKS);
-  source.connect(splitter);
-
   const gainNodes = [];
 
   const merger = ctx.createChannelMerger(2);
@@ -48,7 +46,7 @@ function connectMultiChannelToSpeaker(ctx, source) {
   }
   merger.connect(ctx.destination);
 
-  return gainNodes;
+  return { gainNodes, splitter };
 }
 
 // Handles overlapping when source is longer than destination
@@ -99,6 +97,27 @@ function asciiToArrayBuffer(asciiString) {
   return new Uint8Array([...asciiString].map(c => c.charCodeAt(0))).buffer;
 }
 
+class Channel {
+  constructor(audioManager, num, gainNode) {
+    this._audioManager = audioManager;
+    this.num = num;
+    this.gainNode = gainNode;
+  }
+
+  // Always returns same thing on chromium, sometimes changes on firefox. Don't know why.
+  getFloatArray() {
+    return this._audioManager.loopAudioBuffer.getChannelData(this.num);
+  }
+
+  setFloatArray(floatArray) {
+    const target = this.getFloatArray();
+    if (target !== floatArray) {
+      target.set(floatArray, 0);
+    }
+    this._audioManager.audioDataChanged();
+  }
+}
+
 export class AudioManager {
   constructor(userMedia, bpm, beatsPerLoop) {
     this._ctx = new AudioContext({ sampleRate: 44100 });
@@ -107,24 +126,20 @@ export class AudioManager {
     this._samplesPerBeat = Math.round(this._ctx.sampleRate / (bpm/60));
     this.beatsPerLoop = beatsPerLoop
 
-    this._loopAudioBuffer = new AudioBuffer({
+    this.loopAudioBuffer = new AudioBuffer({
       length: this._samplesPerBeat * beatsPerLoop,
       sampleRate: this._ctx.sampleRate,
       numberOfChannels: MAX_TRACKS,
     });
 
-    const bufSource = this._ctx.createBufferSource();
-    bufSource.channelCount = MAX_TRACKS;
-    bufSource.buffer = this._loopAudioBuffer;
-    bufSource.loop = true;
-    const gainNodes = connectMultiChannelToSpeaker(this._ctx, bufSource);
-    bufSource.start();
+    const connectResult = connectMultiChannelToSpeaker(this._ctx);
+    this._connectBufSourceHere = connectResult.splitter;
+    this._bufSource = null;
+    this.audioDataChanged();
 
-    this.freeChannels = gainNodes.map((node, index) => ({
-      gainNode: node,
-      num: index,
-      floatArray: this._loopAudioBuffer.getChannelData(index),
-    })).reverse();
+    this.freeChannels = connectResult.gainNodes.map(
+      (node, index) => new Channel(this, index, node)
+    ).reverse();
 
     if (userMedia !== null) {
       this.micStreamDestination = this._ctx.createMediaStreamDestination();
@@ -135,15 +150,34 @@ export class AudioManager {
     }
   }
 
+  // Call this after changing something in this.loopAudioBuffer (e.g. someChannel.floatArray)
+  audioDataChanged() {
+    console.log("reconnect");
+    if (this._bufSource !== null) {
+      this._bufSource.stop();
+      this._bufSource.disconnect();
+    }
+
+    this._bufSource = this._ctx.createBufferSource();
+    this._bufSource.channelCount = MAX_TRACKS;
+    this._bufSource.buffer = this.loopAudioBuffer;
+    this._bufSource.loop = true;
+    this._bufSource.connect(this._connectBufSourceHere);
+    this._bufSource.start(0, this._ctx.currentTime % this.loopAudioBuffer.duration);
+  }
+
   async addMetronomeTicks(track) {
+    console.log("metronome goes "+ track.channel.num);
     const baseUrl = window.location.pathname.replace(/[^\/]*\/looper.html$/, '');
-    const arrayBuffer = await downloadBinaryFileAsArrayBuffer(baseUrl + 'metronome.flac');
+    const arrayBuffer = await downloadBinaryFileAsArrayBuffer(baseUrl + 'metronome.wav');
     const audioBuffer = await arrayBufferToAudioBuffer(this._ctx, arrayBuffer);
     const tick = audioBuffer.getChannelData(0).slice(0, this._samplesPerBeat);
 
-    for (let offset = 0; offset < track.channel.floatArray.length; offset += this._samplesPerBeat) {
-      track.channel.floatArray.set(tick, offset);
+    const target = track.channel.getFloatArray();
+    for (let offset = 0; offset < target.length; offset += this._samplesPerBeat) {
+      target.set(tick, offset);
     }
+    track.channel.setFloatArray(target);
     track.redrawCanvas();
   }
 
@@ -153,7 +187,7 @@ export class AudioManager {
     }
 
     const startTime = this._ctx.currentTime - 0.001*+document.getElementById('lagCompensationSlider').value;
-    const copyOffset = Math.round(startTime*this._loopAudioBuffer.sampleRate);
+    const copyOffset = Math.round(startTime*this.loopAudioBuffer.sampleRate);
 
     this._recordState = {
       track,
@@ -171,8 +205,11 @@ export class AudioManager {
       // You can't use only the latest chunk, because audio data format needs previous chunks too.
       const arrayBuffer = await blobToArrayBuffer(new Blob(chunks));
       const audioBuffer = await arrayBufferToAudioBuffer(this._ctx, arrayBuffer);
-      track.channel.floatArray.fill(0);
-      new FloatArrayCopier(audioBuffer.getChannelData(0), track.channel.floatArray, copyOffset).copyAll();
+
+      const target = track.channel.getFloatArray();
+      target.fill(0);
+      new FloatArrayCopier(audioBuffer.getChannelData(0), target, copyOffset).copyAll();
+      track.channel.setFloatArray(target);
       track.redrawCanvas();
     };
 
@@ -192,11 +229,11 @@ export class AudioManager {
   }
 
   getPlayIndicatorPosition() {
-    return (this._ctx.currentTime / this._loopAudioBuffer.duration) % 1;
+    return (this._ctx.currentTime / this.loopAudioBuffer.duration) % 1;
   }
 
   getWavBlob(allTracks) {
-    const n = this._loopAudioBuffer.length;
+    const n = this.loopAudioBuffer.length;
     const combinedArray = new Float32Array(n);
 
     for (const track of allTracks) {
@@ -225,8 +262,8 @@ export class AudioManager {
       new Uint32Array([16]).buffer,
       new Uint16Array([1]).buffer,
       new Uint16Array([1]).buffer,
-      new Uint32Array([this._loopAudioBuffer.sampleRate]).buffer,
-      new Uint32Array([2*this._loopAudioBuffer.sampleRate]).buffer,
+      new Uint32Array([this.loopAudioBuffer.sampleRate]).buffer,
+      new Uint32Array([2*this.loopAudioBuffer.sampleRate]).buffer,
       new Uint16Array([2]).buffer,
       new Uint16Array([16]).buffer,
       asciiToArrayBuffer('data'),

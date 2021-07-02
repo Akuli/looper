@@ -96,7 +96,7 @@ class Track {
     this._canvasCtx.lineWidth = 4;  // it can be very squeezed horizontally
 
     const gain = this._getGain();
-    const allSamples = this.channel.floatArray;
+    const allSamples = this.channel.getFloatArray();
 
     this._canvasCtx.beginPath();
     for (let x = 0; x < this.canvas.width; x++) {

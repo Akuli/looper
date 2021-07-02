@@ -38,6 +38,7 @@ export async function addTrack(track) {
   const trackDocument = await loopDocument.collection('tracks').add({
     name: track.nameInput.value,
     audioBlob: firebase.firestore.Blob.fromUint8Array(new Uint8Array(track.channel.floatArray.buffer)),
+    createTime: track.createTime,
     creator: auth.getUid(),
   });
   track.firestoreId = trackDocument.id;
@@ -69,6 +70,7 @@ export function addTracksChangedCallback(changeCallback) {
           id: doc.id,
           floatArray: new Float32Array(data.audioBlob.toUint8Array().buffer),
           name: data.name,
+          createTime: data.createTime,
           createdByCurrentUser: data.creator === auth.getUid(),
         };
       }));

@@ -1,9 +1,10 @@
 import * as firestore from './firestore.js';
 
 
-export class Track {
-  constructor(channel, beatCount, createdByCurrentUser) {
+class Track {
+  constructor(channel, beatCount, createTime, createdByCurrentUser) {
     this.channel = channel;
+    this.createTime = createTime;
     this.createdByCurrentUser = createdByCurrentUser;
     this.firestoreId = null;
 
@@ -50,8 +51,6 @@ export class Track {
     this.canvas = this.div.querySelector('canvas');
     this._canvasCtx = this.canvas.getContext('2d');
     this._canvasCtx.strokeStyle = '#00cc00';
-
-    document.getElementById('tracks').appendChild(this.div);
   }
 
   _updateDeleteButton() {
@@ -115,18 +114,28 @@ export class Track {
   }
 }
 
+function insertChildElement(parentElement, childElement, index) {
+  if (index === parentElement.children.length) {
+    parentElement.appendChild(childElement);
+  } else if (0 <= index && index < parentElement.children.length) {
+    parentElement.insertBefore(childElement, parentElement.children[index]);
+  } else {
+    throw new Error("bad index");
+  }
+}
 
 export class TrackManager {
   constructor(audioManager) {
     this.audioManager = audioManager;
-    this.tracks = [];
+    this._tracks = [];  // sorted by createTime
+
     firestore.addTracksChangedCallback(trackInfos => {
       for (const info of trackInfos) {
         // When recording stops, this runs with a track that has no firestore id yet
-        let track = this.tracks.find(track => track.firestoreId === null || track.firestoreId === info.id);
+        let track = this._tracks.find(track => track.firestoreId === null || track.firestoreId === info.id);
         if (track === undefined) {
           // New track in firestore
-          track = this._addTrack(info.name, info.createdByCurrentUser);
+          track = this._addTrack(info.name, info.createTime, info.createdByCurrentUser);
           track.firestoreId = info.id;
           if (track.channel.floatArray.length !== info.floatArray.length) {
             throw new Error("lengths don't match");
@@ -141,26 +150,33 @@ export class TrackManager {
     this._showPlayIndicator();
   }
 
-  _addTrack(name, createdByCurrentUser) {
+  _addTrack(name, createTime = null, createdByCurrentUser = true) {
+    if (createTime === null) {
+      createTime = +new Date();
+    }
     const channel = this.audioManager.freeChannels.pop();
     if (channel === undefined) {
       throw new Error("no more free channels");
     }
 
-    const track = new Track(channel, this.audioManager.beatsPerLoop, createdByCurrentUser);
+    const track = new Track(channel, this.audioManager.beatsPerLoop, createTime, createdByCurrentUser);
     track.nameInput.value = name;
     track.nameInput.addEventListener('blur', () => firestore.onNameChanged(track, track.nameInput.value));
     track.deleteButton.addEventListener('click', () => this.deleteTrack(track));
-    this.tracks.push(track);
+
+    this._tracks.push(track);
+    this._tracks.sort((a, b) => (a.createTime - b.createTime));
+    insertChildElement(document.getElementById('tracks'), track.div, this._tracks.indexOf(track));
+
     return track;
   }
 
   async deleteTrack(track) {
-    const index = this.tracks.indexOf(track);
+    const index = this._tracks.indexOf(track);
     if (index === -1) {
       throw new Error("this shouldn't happen");
     }
-    this.tracks.splice(index, 1);
+    this._tracks.splice(index, 1);
 
     track.channel.floatArray.fill(0);
     track.channel.gainNode.gain.value = 1;
@@ -171,7 +187,7 @@ export class TrackManager {
   }
 
   startRecording() {
-    const track = this._addTrack("Recording...", true);
+    const track = this._addTrack("Recording...");
     track.div.classList.add("recording");
     this.audioManager.startRecording(track);
   }
@@ -185,13 +201,13 @@ export class TrackManager {
 
   _showPlayIndicator() {
     const indicator = document.getElementById('playIndicator');
-    if (this.tracks.length === 0) {
+    if (this._tracks.length === 0) {
       indicator.classList.add("hidden");
     } else {
       indicator.classList.remove("hidden");
 
       const trackDiv = document.getElementById('tracks');
-      const canvas = this.tracks[0].canvas;  // Only x coordinates used, assume lined up
+      const canvas = this._tracks[0].canvas;  // Only x coordinates used, assume lined up
 
       // I also tried css variables and calc(), consumed more cpu that way
       const ratio = this.audioManager.getPlayIndicatorPosition();
@@ -204,12 +220,12 @@ export class TrackManager {
   }
 
   async addMetronome() {
-    const track = this._addTrack("Metronome", true);
+    const track = this._addTrack("Metronome");
     await this.audioManager.addMetronomeTicks(track);
     await firestore.addTrack(track);
   }
 
   getWavBlob() {
-    return this.audioManager.getWavBlob(this.tracks);
+    return this.audioManager.getWavBlob(this._tracks);
   }
 }

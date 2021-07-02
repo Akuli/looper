@@ -63,7 +63,23 @@ async function initAudioManager(bpm, beatCount) {
 
 document.addEventListener('DOMContentLoaded', async() => {
   initLagCompensation();
-  const { bpm, beatCount, createdNewLoop } = await firestore.init();
+  let firestoreInitResult;
+  try {
+    firestoreInitResult = await firestore.init();
+  } catch(e) {
+    if (e.name === "FirebaseError" && e.code === "unavailable") {
+      document.body.innerHTML = `
+      <h3 style="text-align: center;">No internet connection :(</h3>
+      <div class="centerer">
+        <button class="big" onclick="window.location.reload()">Refresh</button>
+      </div>
+      `;
+      return;
+    }
+    throw e;
+  }
+
+  const { bpm, beatCount, createdNewLoop } = firestoreInitResult;
   const { canRecord, trackManager } = await initAudioManager(bpm, beatCount);
   if (createdNewLoop) {
     trackManager.addMetronome();

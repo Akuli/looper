@@ -1,3 +1,10 @@
+# Looper
+
+This is like a loop pedal, but in the browser.
+[Click here](https://akuli.github.io/looper/) to use it.
+
+## Development
+
 ```
 $ python3 server.py
 ```

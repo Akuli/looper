@@ -1,6 +1,7 @@
 import * as firestore from './firestore.js';
 import { AudioManager } from './audioManager.js';
 import { TrackManager } from './track.js';
+import { fatalError, checkBrowser } from './fatalError.js';
 import { translate } from './translate.js';
 
 
@@ -66,19 +67,21 @@ async function initAudioManager(bpm, beatCount) {
 }
 
 document.addEventListener('DOMContentLoaded', async() => {
+  checkBrowser();
   initLagCompensation();
   let firestoreInitResult;
   try {
     firestoreInitResult = await firestore.init();
   } catch(e) {
     if (e.name === "FirebaseError" && e.code === "unavailable") {
-      document.body.innerHTML = `
-      <h3 style="text-align: center;">No internet connection :(</h3>
-      <div class="centerer">
-        <button class="big" onclick="window.location.reload()">Refresh</button>
-      </div>
-      `;
-      return;
+      fatalError(
+        translate("No internet connection"),
+        `
+          <div class="centerer">
+            <button class="big" onclick="window.location.reload()">${translate("Refresh")}</button>
+          </div>
+        `
+      );
     }
     throw e;
   }

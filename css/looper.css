@@ -1,0 +1,79 @@
+#lagCompensationEntry {
+    width: 3.5em;
+}
+
+#tracks {
+    display: flex;
+    flex-direction: column;
+}
+
+.track {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    background: #ddd;
+    border-radius: 10px;
+    margin: 2px;
+    padding: 3px;
+}
+
+.track > * {
+    margin: 3px;
+}
+
+.track > canvas {
+    width: 1px;    /* Allow shrinking */
+    flex-grow: 1;  /* ...but also grow it to fit space */
+    background-color: #333;
+    padding: 1px;   /* Helps with displaying stuff at left edge */
+}
+
+.trackControls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.trackVolumeContainer {
+    display: flex;
+}
+
+.trackName {
+    margin-top: 5px;
+    margin-bottom: 10px;
+    text-align: center;
+    font-size: 1em;
+    background-color: transparent;
+    border: 0px;
+}
+
+.track.recording > .trackControls > .trackName {
+    color: red;
+}
+
+.trackName:focus {
+    background-color: white;
+}
+
+.deleteTrackButton {
+    font-size: 1.2em;
+}
+
+#playIndicator {
+    position: absolute;
+    background-color: red;
+    width: 1px;
+}
+
+#lagDiv {
+    display: flex;
+}
+
+#lagDiv > * {
+    margin-left: 0.2em;
+}
+
+div.centerer {
+    display: flex;
+    justify-content: center;
+}

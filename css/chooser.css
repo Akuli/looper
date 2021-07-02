@@ -1,0 +1,16 @@
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#inputDiv {
+    display: grid;
+    grid-template-columns: auto auto auto;
+    align-items: center;
+}
+
+#inputDiv > input {
+    width: 3em;
+    margin: 0.3em;
+}

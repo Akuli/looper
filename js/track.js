@@ -44,16 +44,16 @@ class Track {
     this.volumeSlider.addEventListener('input', () => {
       const gain = this._getGain();
       this.channel.gainNode.gain.value = gain;
-      this._updateDeleteButton();
+      this._updateDisableds();
     });
-    this._updateDeleteButton();
+    this._updateDisableds();
 
     this.canvas = this.div.querySelector('canvas');
     this._canvasCtx = this.canvas.getContext('2d');
     this._canvasCtx.strokeStyle = '#00cc00';
   }
 
-  _updateDeleteButton() {
+  _updateDisableds() {
     if (!this.createdByCurrentUser) {
       this.deleteButton.title = "You can't delete this track because you didn't create it";
     } else if (this._getGain() > 0) {
@@ -61,8 +61,9 @@ class Track {
     } else {
       this.deleteButton.title = "";
     }
-
     this.deleteButton.disabled = !!this.deleteButton.title;
+
+    this.nameInput.disabled = !this.createdByCurrentUser;
   }
 
   _getGain() {

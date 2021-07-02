@@ -1,15 +1,35 @@
-// Firebase is initialized in looper.html
+/*
+Firebase is initialized in looper.html
+Most helpful docs I found so far: https://firebase.google.com/docs/firestore/data-model
+The rules I use:
 
-// Most helpful docs I found so far: https://firebase.google.com/docs/firestore/data-model
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /loops/{loop} {
+        allow read: if true;
+        allow write: if false;
+        allow create: if true;
+      }
+      match /loops/{loop}/tracks/{track} {
+        allow read: if true;
+        allow update, delete: if request.auth != null && request.auth.uid == resource.data.creator;
+        allow create: if request.auth != null && request.auth.uid == request.resource.data.creator;
+      }
+    }
+  }
+*/
+
 const firestore = firebase.firestore();
 const auth = firebase.auth();
 const loopsCollection = firestore.collection("/loops");
 let loopDocument;
 
 export async function init() {
-  // Needs anonymous auth enabled
+  // Need to enable anonymous auth to have uids
   // https://firebase.google.com/docs/auth/web/anonymous-auth#before-you-begin
   await auth.signInAnonymously();
+  console.log("Signed in, uid=" + auth.getUid());
 
   // Can't use query params because changing them causes a reload
   let bpm, beatCount;
@@ -50,6 +70,7 @@ export async function onNameChanged(track, name) {
     throw new Error("omg");
   }
   await loopDocument.collection('tracks').doc(track.firestoreId).update({ name });
+  console.log(`${track.firestoreId} is now known as ${name}`);
 }
 
 export async function deleteTrack(track) {
@@ -57,6 +78,7 @@ export async function deleteTrack(track) {
     throw new Error("can't delete track without knowing id");
   }
   await loopDocument.collection('tracks').doc(track.firestoreId).delete()
+  console.log(`Deleted ${track.firestoreId}`);
 }
 
 export function addTracksChangedCallback(changeCallback) {
@@ -64,6 +86,7 @@ export function addTracksChangedCallback(changeCallback) {
     // This attempts to check whether the change event was created by current browser tab or not
     // https://firebase.google.com/docs/firestore/query-data/listen#events-local-changes
     if (!snapshot.hasPendingWrites) {
+      console.log("Received change events");
       changeCallback(snapshot.docs.map(doc => {
         const data = doc.data();
         return {

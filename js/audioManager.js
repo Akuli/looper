@@ -1,6 +1,3 @@
-import { Track } from './track.js';
-import * as firestore from './firestore.js';
-
 // I read somewhere that some spec requires 32 channels to work. Don't remember where. Sorry.
 const MAX_TRACKS = 32;
 
@@ -104,94 +101,66 @@ function asciiToArrayBuffer(asciiString) {
 
 export class AudioManager {
   constructor(userMedia, bpm, beatsPerLoop) {
-    this.ctx = new AudioContext({ sampleRate: 44100 });
+    this._ctx = new AudioContext({ sampleRate: 44100 });
+    this._recordState = null;
 
-    this._samplesPerBeat = Math.round(this.ctx.sampleRate / (bpm/60));
-    this._beatsPerLoop = beatsPerLoop
+    this._samplesPerBeat = Math.round(this._ctx.sampleRate / (bpm/60));
+    this.beatsPerLoop = beatsPerLoop
 
-    this.loopAudioBuffer = new AudioBuffer({
+    this._loopAudioBuffer = new AudioBuffer({
       length: this._samplesPerBeat * beatsPerLoop,
-      sampleRate: this.ctx.sampleRate,
+      sampleRate: this._ctx.sampleRate,
       numberOfChannels: MAX_TRACKS,
     });
 
-    const bufSource = this.ctx.createBufferSource();
+    const bufSource = this._ctx.createBufferSource();
     bufSource.channelCount = MAX_TRACKS;
-    bufSource.buffer = this.loopAudioBuffer;
+    bufSource.buffer = this._loopAudioBuffer;
     bufSource.loop = true;
-    const gainNodes = connectMultiChannelToSpeaker(this.ctx, bufSource);
+    const gainNodes = connectMultiChannelToSpeaker(this._ctx, bufSource);
     bufSource.start();
 
-    this.tracks = [];
     this.freeChannels = gainNodes.map((node, index) => ({
       gainNode: node,
       num: index,
-      floatArray: this.loopAudioBuffer.getChannelData(index),
+      floatArray: this._loopAudioBuffer.getChannelData(index),
     })).reverse();
 
     if (userMedia !== null) {
-      this.micStreamDestination = this.ctx.createMediaStreamDestination();
-      const microphone = this.ctx.createMediaStreamSource(userMedia);
+      this.micStreamDestination = this._ctx.createMediaStreamDestination();
+      const microphone = this._ctx.createMediaStreamSource(userMedia);
       microphone.connect(this.micStreamDestination);
     } else {
       this.micStreamDestination = null;
     }
-
-    this._showPlayIndicator();
   }
 
-  async addMetronome() {
+  async addMetronomeTicks(track) {
     const arrayBuffer = await downloadBinaryFileAsArrayBuffer('/metronome.flac');
-    const audioBuffer = await arrayBufferToAudioBuffer(this.ctx, arrayBuffer);
+    const audioBuffer = await arrayBufferToAudioBuffer(this._ctx, arrayBuffer);
     const tick = audioBuffer.getChannelData(0).slice(0, this._samplesPerBeat);
 
-    const track = this._addTrack("Metronome");
     for (let offset = 0; offset < track.channel.floatArray.length; offset += this._samplesPerBeat) {
       track.channel.floatArray.set(tick, offset);
     }
     track.redrawCanvas();
-    await firestore.addTrack(track);
   }
 
-  _addTrack(name) {
-    const channel = this.freeChannels.pop();
-    if (channel === undefined) {
-      throw new Error("no more free channels");
+  startRecording(track) {
+    if (this._recordState !== null) {
+      throw new Error("already recording");
     }
 
-    const track = new Track(channel, this._beatsPerLoop, true);
-    track.nameInput.value = name;
-    track.deleteButton.addEventListener('click', () => this._deleteTrack(track));
-    this.tracks.push(track);
-    return track;
-  }
+    const startTime = this._ctx.currentTime - 0.001*+document.getElementById("lagCompensationSlider").value;
+    const copyOffset = Math.round(startTime*this._loopAudioBuffer.sampleRate);
 
-  async _deleteTrack(track) {
-    const index = this.tracks.indexOf(track);
-    if (index === -1) {
-      throw new Error("this shouldn't happen");
-    }
-    this.tracks.splice(index, 1);
-
-    track.channel.floatArray.fill(0);
-    track.channel.gainNode.gain.value = 1;
-    this.freeChannels.push(track.channel);
-
-    track.div.remove();
-    await firestore.deleteTrack(track);
-  }
-
-  startRecording() {
-    const track = this._addTrack("Recording...");
-    track.div.classList.add("recording");
-
-    const startTime = this.ctx.currentTime - 0.001*+document.getElementById("lagCompensationSlider").value;
-    const copyOffset = Math.round(startTime*this.loopAudioBuffer.sampleRate);
-
-    this.mediaRecorder = new MediaRecorder(this.micStreamDestination.stream);
+    this._recordState = {
+      track,
+      mediaRecorder: new MediaRecorder(this.micStreamDestination.stream),
+    };
 
     const chunks = [];  // contains blobs
-    this.mediaRecorder.ondataavailable = async(event) => {
+    this._recordState.mediaRecorder.ondataavailable = async(event) => {
       chunks.push(event.data);
 
       // Two reasons to update the channel here:
@@ -200,55 +169,36 @@ export class AudioManager {
       //
       // You can't use only the latest chunk, because audio data format needs previous chunks too.
       const arrayBuffer = await blobToArrayBuffer(new Blob(chunks));
-      const audioBuffer = await arrayBufferToAudioBuffer(this.ctx, arrayBuffer);
+      const audioBuffer = await arrayBufferToAudioBuffer(this._ctx, arrayBuffer);
       track.channel.floatArray.fill(0);
       new FloatArrayCopier(audioBuffer.getChannelData(0), track.channel.floatArray, copyOffset).copyAll();
       track.redrawCanvas();
     };
 
     // Occationally flush audio to chunks array (and to the channel)
-    const flushInterval = window.setInterval(() => this.mediaRecorder.requestData(), 200);
+    const flushInterval = window.setInterval(() => this._recordState.mediaRecorder.requestData(), 200);
+    this._recordState.mediaRecorder.onstop = () => window.clearInterval(flushInterval);
 
-    this.mediaRecorder.onstop = async () => {
-      window.clearInterval(flushInterval);
-      track.nameInput.value = `Track ${track.channel.num}`;
-      track.div.classList.remove("recording");
-      await firestore.addTrack(track);
-    };
-
-    this.mediaRecorder.start();
+    this._recordState.mediaRecorder.start();
   }
 
   stopRecording() {
-    this.mediaRecorder.requestData();
-    this.mediaRecorder.stop();
+    const track = this._recordState.track;
+    this._recordState.mediaRecorder.requestData();
+    this._recordState.mediaRecorder.stop();
+    this._recordState = null;
+    return track;
   }
 
-  _showPlayIndicator() {
-    const indicator = document.getElementById('playIndicator');
-    if (this.tracks.length === 0) {
-      indicator.classList.add("hidden");
-    } else {
-      indicator.classList.remove("hidden");
-
-      const trackDiv = document.getElementById('tracks');
-      const canvas = this.tracks[0].canvas;  // Only x coordinates used, assume lined up
-
-      // I also tried css variables and calc(), consumed more cpu that way
-      const ratio = (this.ctx.currentTime / this.loopAudioBuffer.duration) % 1;
-      indicator.style.left = `${canvas.offsetLeft + canvas.offsetWidth*ratio}px`;
-      indicator.style.top = `${trackDiv.offsetTop}px`;
-      indicator.style.height = `${trackDiv.offsetHeight}px`;
-    }
-
-    window.requestAnimationFrame(() => this._showPlayIndicator());
+  getPlayIndicatorPosition() {
+    return (this._ctx.currentTime / this._loopAudioBuffer.duration) % 1;
   }
 
-  getWavBlob() {
-    const n = this.loopAudioBuffer.length;
+  getWavBlob(allTracks) {
+    const n = this._loopAudioBuffer.length;
     const combinedArray = new Float32Array(n);
 
-    for (const track of this.tracks) {
+    for (const track of allTracks) {
       const gain = track.channel.gainNode.gain.value;
       const sourceArray = track.channel.floatArray;
       for (let i = 0; i < n; i++) {
@@ -274,12 +224,12 @@ export class AudioManager {
       new Uint32Array([16]).buffer,
       new Uint16Array([1]).buffer,
       new Uint16Array([1]).buffer,
-      new Uint32Array([this.loopAudioBuffer.sampleRate]).buffer,
-      new Uint32Array([2*this.loopAudioBuffer.sampleRate]).buffer,
+      new Uint32Array([this._loopAudioBuffer.sampleRate]).buffer,
+      new Uint32Array([2*this._loopAudioBuffer.sampleRate]).buffer,
       new Uint16Array([2]).buffer,
       new Uint16Array([16]).buffer,
       asciiToArrayBuffer("data"),
-      new Uint16Array([2*n]).buffer,
+      new Uint16Array([2*n]).buffer,  // TODO: is this correct? usually 2*n doesn't fit in 16 bits
       audioDataInt16.buffer,
     ];
     return new Blob(chunks, { type: 'audio/wav' });

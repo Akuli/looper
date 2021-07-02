@@ -1,5 +1,6 @@
 import { AudioManager } from './audioManager.js';
 import * as firestore from './firestore.js';
+import { TrackManager } from './track.js';
 
 function initLagCompensation() {
   const slider = document.getElementById("lagCompensationSlider");
@@ -29,18 +30,18 @@ async function initAudioManager(bpm, beatCount) {
     console.log(e);
   }
 
-  const audioManager = new AudioManager(userMedia, bpm, beatCount);
-  await audioManager.addMetronome();
+  const trackManager = new TrackManager(new AudioManager(userMedia, bpm, beatCount))
+  await trackManager.addMetronome();
 
   recordOrStopButton.addEventListener('click', () => {
     if (recordOrStopButton.textContent === "Record") {
-      audioManager.startRecording();
+      trackManager.startRecording();
       recordOrStopButton.textContent = "Stop recording";
     } else {
       // You have to click "Stop" little bit after you are done with recording.
       // Otherwise it truncates the end.
       // I tried setting 100ms timeout here but then click sound gets recorded.
-      audioManager.stopRecording();
+      trackManager.stopRecording();
       recordOrStopButton.textContent = "Record";
     }
   });
@@ -49,7 +50,7 @@ async function initAudioManager(bpm, beatCount) {
     const downloadLink = document.createElement("a");
     downloadLink.classList.add("hidden");
     document.body.appendChild(downloadLink);
-    downloadLink.href = URL.createObjectURL(audioManager.getWavBlob());
+    downloadLink.href = URL.createObjectURL(trackManager.getWavBlob());
     downloadLink.download = "loop.wav";
     downloadLink.click();
   });

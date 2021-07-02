@@ -1,3 +1,6 @@
+import * as firestore from './firestore.js';
+
+
 export class Track {
   constructor(channel, beatCount, createdByCurrentUser) {
     this.channel = channel;
@@ -109,5 +112,85 @@ export class Track {
       this._canvasCtx.lineTo(x, (1 + volume)*this.canvas.height/2);
     }
     this._canvasCtx.stroke();
+  }
+}
+
+
+export class TrackManager {
+  constructor(audioManager) {
+    this.audioManager = audioManager;
+    this.tracks = [];
+    this._showPlayIndicator();
+  }
+
+  addTrack(name) {
+    const channel = this.audioManager.freeChannels.pop();
+    if (channel === undefined) {
+      throw new Error("no more free channels");
+    }
+
+    const track = new Track(channel, this.audioManager.beatsPerLoop, true);
+    track.nameInput.value = name;
+    track.deleteButton.addEventListener('click', () => this._deleteTrack(track));
+    this.tracks.push(track);
+    return track;
+  }
+
+  async deleteTrack(track) {
+    const index = this.tracks.indexOf(track);
+    if (index === -1) {
+      throw new Error("this shouldn't happen");
+    }
+    this.tracks.splice(index, 1);
+
+    track.channel.floatArray.fill(0);
+    track.channel.gainNode.gain.value = 1;
+    this.freeChannels.push(track.channel);
+
+    track.div.remove();
+    await firestore.deleteTrack(track);
+  }
+
+  startRecording() {
+    const track = this.addTrack("Recording...");
+    track.div.classList.add("recording");
+    this.audioManager.startRecording(track);
+  }
+
+  async stopRecording() {
+    const track = this.audioManager.stopRecording();
+    track.nameInput.value = `Track ${track.channel.num}`;
+    track.div.classList.remove("recording");
+    await firestore.addTrack(track);
+  }
+
+  _showPlayIndicator() {
+    const indicator = document.getElementById('playIndicator');
+    if (this.tracks.length === 0) {
+      indicator.classList.add("hidden");
+    } else {
+      indicator.classList.remove("hidden");
+
+      const trackDiv = document.getElementById('tracks');
+      const canvas = this.tracks[0].canvas;  // Only x coordinates used, assume lined up
+
+      // I also tried css variables and calc(), consumed more cpu that way
+      const ratio = this.audioManager.getPlayIndicatorPosition();
+      indicator.style.left = `${canvas.offsetLeft + canvas.offsetWidth*ratio}px`;
+      indicator.style.top = `${trackDiv.offsetTop}px`;
+      indicator.style.height = `${trackDiv.offsetHeight}px`;
+    }
+
+    window.requestAnimationFrame(() => this._showPlayIndicator());
+  }
+
+  async addMetronome() {
+    const track = this.addTrack("Metronome");
+    await this.audioManager.addMetronomeTicks(track);
+    await firestore.addTrack(track);
+  }
+
+  getWavBlob() {
+    return this.audioManager.getWavBlob(this.tracks);
   }
 }

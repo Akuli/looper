@@ -111,6 +111,9 @@ class Channel {
 
   setFloatArray(floatArray) {
     const target = this.getFloatArray();
+    if (target.length !== floatArray.length) {
+      throw new Error("lengths don't match");
+    }
     if (target !== floatArray) {
       target.set(floatArray, 0);
     }
@@ -150,9 +153,8 @@ export class AudioManager {
     }
   }
 
-  // Call this after changing something in this.loopAudioBuffer (e.g. someChannel.floatArray)
+  // Called after changing something in this.loopAudioBuffer
   audioDataChanged() {
-    console.log("reconnect");
     if (this._bufSource !== null) {
       this._bufSource.stop();
       this._bufSource.disconnect();
@@ -167,7 +169,6 @@ export class AudioManager {
   }
 
   async addMetronomeTicks(track) {
-    console.log("metronome goes "+ track.channel.num);
     const baseUrl = window.location.pathname.replace(/[^\/]*\/looper.html$/, '');
     const arrayBuffer = await downloadBinaryFileAsArrayBuffer(baseUrl + 'metronome.wav');
     const audioBuffer = await arrayBufferToAudioBuffer(this._ctx, arrayBuffer);
@@ -196,25 +197,34 @@ export class AudioManager {
 
     const chunks = [];  // contains blobs
     this._recordState.mediaRecorder.ondataavailable = async(event) => {
+      console.log(event.data);
       chunks.push(event.data);
 
-      // Two reasons to update the channel here:
-      //    * It gets visualized right away
-      //    * You can hear it right away, useful when you record longer than one loop length
-      //
-      // You can't use only the latest chunk, because audio data format needs previous chunks too.
-      const arrayBuffer = await blobToArrayBuffer(new Blob(chunks));
-      const audioBuffer = await arrayBufferToAudioBuffer(this._ctx, arrayBuffer);
+      // First time creates error in firefox
+      if (chunks.length !== 1) {
+        const arrayBuffer = await blobToArrayBuffer(new Blob(chunks, {type: "audio/ogg; codecs=opus"}));
+        const audioBuffer = await arrayBufferToAudioBuffer(this._ctx, arrayBuffer);
 
-      const target = track.channel.getFloatArray();
-      target.fill(0);
-      new FloatArrayCopier(audioBuffer.getChannelData(0), target, copyOffset).copyAll();
-      track.channel.setFloatArray(target);
-      track.redrawCanvas();
+        // Two reasons to update the channel here:
+        //    * It gets visualized right away
+        //    * You can hear it right away, useful when you record longer than one loop length
+        //
+        // You can't use only the latest chunk, because audio data format needs previous chunks too.
+        const target = track.channel.getFloatArray();
+        target.fill(0);
+        new FloatArrayCopier(audioBuffer.getChannelData(0), target, copyOffset).copyAll();
+        track.channel.setFloatArray(target);
+        track.redrawCanvas();
+      }
     };
 
     // Occationally flush audio to chunks array (and to the channel)
-    const flushInterval = window.setInterval(() => this._recordState.mediaRecorder.requestData(), 200);
+    const flushInterval = window.setInterval(() => {
+      // Null check needed on firefox, not necessary on chromium
+      if (this._recordState !== null) {
+        this._recordState.mediaRecorder.requestData();
+      }
+    }, 200);
     this._recordState.mediaRecorder.onstop = () => window.clearInterval(flushInterval);
 
     this._recordState.mediaRecorder.start();
@@ -238,7 +248,7 @@ export class AudioManager {
 
     for (const track of allTracks) {
       const gain = track.channel.gainNode.gain.value;
-      const sourceArray = track.channel.floatArray;
+      const sourceArray = track.channel.getFloatArray();
       for (let i = 0; i < n; i++) {
         combinedArray[i] += gain*sourceArray[i];
       }

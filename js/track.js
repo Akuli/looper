@@ -139,10 +139,7 @@ export class TrackManager {
           // New track in firestore
           track = this._addTrack(info.name, info.createTime, info.createdByCurrentUser);
           track.firestoreId = info.id;
-          if (track.channel.floatArray.length !== info.floatArray.length) {
-            throw new Error("lengths don't match");
-          }
-          track.channel.floatArray.set(info.floatArray, 0);
+          track.channel.setFloatArray(info.floatArray);
           track.redrawCanvas();
         } else {
           track.nameInput.value = info.name;
@@ -180,7 +177,7 @@ export class TrackManager {
     }
     this._tracks.splice(index, 1);
 
-    track.channel.floatArray.fill(0);
+    track.channel.getFloatArray().fill(0);
     track.channel.gainNode.gain.value = 1;
     this.audioManager.freeChannels.push(track.channel);
 

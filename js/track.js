@@ -120,17 +120,35 @@ export class TrackManager {
   constructor(audioManager) {
     this.audioManager = audioManager;
     this.tracks = [];
+    firestore.addTracksChangedCallback(trackInfos => {
+      for (const info of trackInfos) {
+        let track = this.tracks.find(track => track.firestoreId === info.id);
+        if (track === undefined) {
+          // New track in firestore
+          track = this._addTrack(info.name, info.createdByCurrentUser);
+          track.firestoreId = info.id;
+          if (track.channel.floatArray.length !== info.floatArray.length) {
+            throw new Error("lengths don't match");
+          }
+          track.channel.floatArray.set(info.floatArray, 0);
+          track.redrawCanvas();
+        } else {
+          track.nameInput.value = info.name;
+        }
+      }
+    });
     this._showPlayIndicator();
   }
 
-  addTrack(name) {
+  _addTrack(name, createdByCurrentUser) {
     const channel = this.audioManager.freeChannels.pop();
     if (channel === undefined) {
       throw new Error("no more free channels");
     }
 
-    const track = new Track(channel, this.audioManager.beatsPerLoop, true);
+    const track = new Track(channel, this.audioManager.beatsPerLoop, createdByCurrentUser);
     track.nameInput.value = name;
+    track.nameInput.addEventListener('blur', () => firestore.onNameChanged(track, track.nameInput.value));
     track.deleteButton.addEventListener('click', () => this.deleteTrack(track));
     this.tracks.push(track);
     return track;
@@ -152,7 +170,7 @@ export class TrackManager {
   }
 
   startRecording() {
-    const track = this.addTrack("Recording...");
+    const track = this._addTrack("Recording...", true);
     track.div.classList.add("recording");
     this.audioManager.startRecording(track);
   }
@@ -185,7 +203,7 @@ export class TrackManager {
   }
 
   async addMetronome() {
-    const track = this.addTrack("Metronome");
+    const track = this._addTrack("Metronome", true);
     await this.audioManager.addMetronomeTicks(track);
     await firestore.addTrack(track);
   }

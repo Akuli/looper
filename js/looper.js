@@ -27,11 +27,11 @@ async function initAudioManager(bpm, beatCount) {
   try {
     userMedia = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (e) {
+    // Can't record, but can listen to what other people recorded
     console.log(e);
   }
 
   const trackManager = new TrackManager(new AudioManager(userMedia, bpm, beatCount))
-  await trackManager.addMetronome();
 
   recordOrStopButton.addEventListener('click', () => {
     if (recordOrStopButton.textContent === "Record") {
@@ -55,13 +55,19 @@ async function initAudioManager(bpm, beatCount) {
     downloadLink.click();
   });
 
-  return (userMedia !== null);
+  return {
+    trackManager,
+    canRecord: userMedia !== null,
+  };
 }
 
 document.addEventListener('DOMContentLoaded', async() => {
   initLagCompensation();
-  const { bpm, beatCount } = await firestore.init();
-  const canRecord = await initAudioManager(bpm, beatCount);
+  const { bpm, beatCount, createdNewLoop } = await firestore.init();
+  const { canRecord, trackManager } = await initAudioManager(bpm, beatCount);
+  if (createdNewLoop) {
+    trackManager.addMetronome();
+  }
 
   // Must be after all other initialization, so that user can't record before ready
   document.getElementById('wavButton').disabled = false;

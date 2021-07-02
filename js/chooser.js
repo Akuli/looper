@@ -30,7 +30,15 @@ function handleTap(event) {
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('bpmButton').addEventListener('click', handleTap);
   document.body.addEventListener('keypress', event => {
-    if (! ['input', 'button'].includes(event.target.nodeName.toLowerCase())) {
+    if (event.target.nodeName.toLowerCase() === 'button') {
+      // When button is focused, you should be able to click it by pressing spacebar or enter
+      // Therefore "press any key" actually means "any key except space or return"
+      if (event.code !== "Space" && event.code !== "Enter") {
+        handleTap(event);
+      }
+    } else if (event.target.nodeName.toLowerCase() === 'input') {
+      // Do nothing, pressing keys in text input doesn't count as "press any key"
+    } else {
       handleTap(event);
     }
   });

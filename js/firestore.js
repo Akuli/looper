@@ -20,6 +20,15 @@ The rules I use:
   }
 */
 
+firebase.initializeApp({
+  apiKey: "AIzaSyC9NZ0cMPeQnQXYC9yfUz4YYs-5cRqs9bM",
+  authDomain: "looper-6b9c2.firebaseapp.com",
+  projectId: "looper-6b9c2",
+  storageBucket: "looper-6b9c2.appspot.com",
+  messagingSenderId: "571407035019",
+  appId: "1:571407035019:web:8e2f0f83db9a074874428e"
+});
+
 const firestore = firebase.firestore();
 const auth = firebase.auth();
 const loopsCollection = firestore.collection('/loops');

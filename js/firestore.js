@@ -1,4 +1,4 @@
-// Initialized in looper.html
+// Firebase is initialized in looper.html
 
 // Most helpful docs I found so far: https://firebase.google.com/docs/firestore/data-model
 const firestore = firebase.firestore();
@@ -60,7 +60,7 @@ export async function deleteTrack(track) {
 
 export function addTracksChangedCallback(changeCallback) {
   loopDocument.collection('tracks').onSnapshot(snapshot => {
-    // This checks whether the change event was created by current browser tab or not
+    // This attempts to check whether the change event was created by current browser tab or not
     // https://firebase.google.com/docs/firestore/query-data/listen#events-local-changes
     if (!snapshot.hasPendingWrites) {
       changeCallback(snapshot.docs.map(doc => {
@@ -69,7 +69,7 @@ export function addTracksChangedCallback(changeCallback) {
           id: doc.id,
           floatArray: new Float32Array(data.audioBlob.toUint8Array().buffer),
           name: data.name,
-          createdByCurrentUser: true,  // FIXME
+          createdByCurrentUser: data.creator === auth.getUid(),
         };
       }));
     }

@@ -122,7 +122,8 @@ export class TrackManager {
     this.tracks = [];
     firestore.addTracksChangedCallback(trackInfos => {
       for (const info of trackInfos) {
-        let track = this.tracks.find(track => track.firestoreId === info.id);
+        // When recording stops, this runs with a track that has no firestore id yet
+        let track = this.tracks.find(track => track.firestoreId === null || track.firestoreId === info.id);
         if (track === undefined) {
           // New track in firestore
           track = this._addTrack(info.name, info.createdByCurrentUser);

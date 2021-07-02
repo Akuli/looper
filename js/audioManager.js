@@ -198,7 +198,6 @@ export class AudioManager {
 
     const chunks = [];  // contains blobs
     this._recordState.mediaRecorder.ondataavailable = async(event) => {
-      console.log(event.data);
       chunks.push(event.data);
 
       // First time creates error in firefox

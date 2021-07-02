@@ -177,7 +177,10 @@ export class TrackManager {
     }
     this._tracks.splice(index, 1);
 
-    track.channel.getFloatArray().fill(0);
+    const floatArray = track.channel.getFloatArray();
+    floatArray.fill(0);
+    track.channel.setFloatArray(floatArray);
+
     track.channel.gainNode.gain.value = 1;
     this.audioManager.freeChannels.push(track.channel);
 

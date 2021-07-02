@@ -42,7 +42,6 @@ export async function init() {
 
   // Can't use query params because changing them causes a reload
   let bpm, beatCount;
-  window.location.hash='#60,4';
   const createdNewLoop = window.location.hash.includes(',');
   if (createdNewLoop) {
     [bpm, beatCount] = window.location.hash.replace('#', '').split(',').map(val => +val);

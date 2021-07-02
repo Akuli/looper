@@ -27,7 +27,9 @@ async function initAudioManager(bpm, beatCount) {
 
   let userMedia = null;
   try {
+    console.log("getUserMedia starting");
     userMedia = await navigator.mediaDevices.getUserMedia({ audio: true });
+    console.log("getUserMedia success");
   } catch (e) {
     // Can't record, but can listen to what other people recorded
     console.log(e);

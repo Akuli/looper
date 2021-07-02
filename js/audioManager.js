@@ -136,7 +136,8 @@ export class AudioManager {
   }
 
   async addMetronomeTicks(track) {
-    const arrayBuffer = await downloadBinaryFileAsArrayBuffer('/metronome.flac');
+    const baseUrl = window.location.pathname.replace(/[^\/]*\/looper.html$/, '');
+    const arrayBuffer = await downloadBinaryFileAsArrayBuffer(baseUrl + 'metronome.flac');
     const audioBuffer = await arrayBufferToAudioBuffer(this._ctx, arrayBuffer);
     const tick = audioBuffer.getChannelData(0).slice(0, this._samplesPerBeat);
 

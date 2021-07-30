@@ -72,7 +72,7 @@ export async function addTrack(track) {
 
   console.log(`Adding track (${track.channel.floatArray.buffer.byteLength} bytes)`);
 
-  // Firestore documents are limited to 1MB, sounds can easily be 3MB
+  // Firestore documents are limited to 1MB, tracks can easily be 3MB
   const chunkSize = 999000;
   const uintArray = new Uint8Array(track.channel.floatArray.buffer);
 

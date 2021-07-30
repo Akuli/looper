@@ -144,7 +144,7 @@ export function addTracksChangedCallback(changeCallback) {
     }
   });
 
-  // TODO: is it fine to have async callback for onSnapshot?
+  // TODO: better to have async callback for onSnapshot?
   async function poller() {
     while(true) {
       if (queue.length === 0) {

@@ -74,13 +74,13 @@ export async function addTrack(track) {
 
   // Firestore documents are limited to 1MB, sounds can easily be 3MB
   const chunkSize = 999000;
-  const uintArray = new Uint8Array(track.channel.floatArray.buffer);
+  const bigArray = new Uint8Array(track.channel.floatArray.buffer);
 
   const blobIds = [];
-  for (let i = 0; i*chunkSize < uintArray.length; i++) {
+  for (let i = 0; i*chunkSize < bigArray.length; i++) {
     console.log(`Uploading blob ${i}`);
     const blobDocument = await blobsCollection.add({
-      blob: firebase.firestore.Blob.fromUint8Array(uintArray.slice(i*chunkSize, (i+1)*chunkSize)),
+      blob: firebase.firestore.Blob.fromUint8Array(bigArray.slice(i*chunkSize, (i+1)*chunkSize)),
       creator: auth.getUid(),
     });
     blobIds.push(blobDocument.id);

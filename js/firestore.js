@@ -70,9 +70,9 @@ export async function addTrack(track) {
     throw new Error("can't add track, already added?");
   }
 
-  console.log(`Adding track (${track.channel.floatArray.buffer.byteLength} bytes)`);
+  console.log(`Adding track "${track.nameInput.value}" (${track.channel.floatArray.buffer.byteLength} bytes)`);
 
-  // Firestore documents are limited to 1MB, sounds can easily be 3MB
+  // Firestore documents are limited to 1MB, tracks can easily be 3MB
   const chunkSize = 999000;
   const bigArray = new Uint8Array(track.channel.floatArray.buffer);
 
@@ -114,7 +114,7 @@ export async function deleteTrack(track) {
 
 async function getAudioDataFromFirestore(data) {
   if (data.blobIds === undefined) {
-    // legacy loop
+    // legacy loop, only one chunk
     return data.audioBlob.toUint8Array();
   }
 
@@ -144,7 +144,7 @@ export function addTracksChangedCallback(changeCallback) {
     }
   });
 
-  // TODO: is it fine to have async callback for onSnapshot?
+  // TODO: better to have async callback for onSnapshot?
   async function poller() {
     while(true) {
       if (queue.length === 0) {
@@ -164,7 +164,6 @@ export function addTracksChangedCallback(changeCallback) {
           createdByCurrentUser: data.creator === auth.getUid(),
         };
       }));
-
       changeCallback(cleanDocs);
     }
   }

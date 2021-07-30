@@ -164,7 +164,6 @@ export function addTracksChangedCallback(changeCallback) {
           createdByCurrentUser: data.creator === auth.getUid(),
         };
       }));
-
       changeCallback(cleanDocs);
     }
   }

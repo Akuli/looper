@@ -27,7 +27,6 @@ async function downloadBinaryFileAsArrayBuffer(fileUrl) {
   return xhr.response;
 }
 
-// returns array of GainNodes for adjusting volume
 function connectMultiChannelToSpeaker(ctx) {
   const splitter = ctx.createChannelSplitter(MAX_TRACKS);
   const gainNodes = [];
@@ -46,6 +45,7 @@ function connectMultiChannelToSpeaker(ctx) {
   }
   merger.connect(ctx.destination);
 
+  // gainNodes returned for adjusting volume later
   return { gainNodes, splitter };
 }
 

@@ -1,5 +1,3 @@
-import { checkBrowser } from './fatalError.js';
-
 let tapTimes = [];  // milliseconds
 
 function isPositiveInteger(value) {

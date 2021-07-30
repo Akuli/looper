@@ -7,13 +7,18 @@ The rules I use:
   service cloud.firestore {
     match /databases/{database}/documents {
       match /loops/{loop} {
-        allow read: if true;
+        allow read: if request.auth != null;
         allow write: if false;
-        allow create: if true;
+        allow create: if request.auth != null;
       }
       match /loops/{loop}/tracks/{track} {
-        allow read: if true;
+        allow read: if request.auth != null;
         allow update, delete: if request.auth != null && request.auth.uid == resource.data.creator;
+        allow create: if request.auth != null && request.auth.uid == request.resource.data.creator;
+      }
+      match /blobs/{blob} {
+        allow read: if request.auth != null;
+        allow write: if false;
         allow create: if request.auth != null && request.auth.uid == request.resource.data.creator;
       }
     }
@@ -31,6 +36,7 @@ firebase.initializeApp({
 
 const firestore = firebase.firestore();
 const auth = firebase.auth();
+const blobsCollection = firestore.collection('/blobs');
 const loopsCollection = firestore.collection('/loops');
 let loopDocument;
 
@@ -64,15 +70,30 @@ export async function addTrack(track) {
     throw new Error("can't add track, already added?");
   }
 
+  console.log(`Adding track "${track.nameInput.value}" (${track.channel.floatArray.buffer.byteLength} bytes)`);
+
+  // Firestore documents are limited to 1MB, tracks can easily be 3MB
+  const chunkSize = 999000;
+  const bigArray = new Uint8Array(track.channel.floatArray.buffer);
+
+  const blobIds = [];
+  for (let i = 0; i*chunkSize < bigArray.length; i++) {
+    console.log(`Uploading blob ${i}`);
+    const blobDocument = await blobsCollection.add({
+      blob: firebase.firestore.Blob.fromUint8Array(bigArray.slice(i*chunkSize, (i+1)*chunkSize)),
+      creator: auth.getUid(),
+    });
+    blobIds.push(blobDocument.id);
+  }
+
   const value = {
     name: track.nameInput.value,
-    audioBlob: firebase.firestore.Blob.fromUint8Array(new Uint8Array(track.channel.floatArray.buffer)),
+    blobIds: blobIds.join("|"),  // nested values are apparently harder to validate in firestore
     createTime: track.createTime,
     creator: auth.getUid(),
   };
   const trackDocument = await loopDocument.collection('tracks').add(value);
   track.firestoreId = trackDocument.id;
-  console.log(`Added track: ${trackDocument.id} ${value.name}`);
 }
 
 export async function onNameChanged(track, name) {
@@ -91,22 +112,61 @@ export async function deleteTrack(track) {
   console.log(`Deleted ${track.firestoreId}`);
 }
 
+async function getAudioDataFromFirestore(data) {
+  if (data.blobIds === undefined) {
+    // legacy loop, only one chunk
+    return data.audioBlob.toUint8Array();
+  }
+
+  const blobDocuments = await Promise.all(data.blobIds.split("|").map(id => blobsCollection.doc(id).get()));
+  const blobObjects = blobDocuments.map(doc => doc.data());
+  if (!blobObjects.every(b => b.creator === data.creator)) {
+    throw new Error("creator mismatch");
+  }
+  const arrayChunks = blobObjects.map(blob => blob.blob.toUint8Array());
+
+  const result = new Uint8Array(arrayChunks.map(arr => arr.length).reduce((a,b) => a+b));
+  let start = 0;
+  for (const arr of arrayChunks) {
+    result.set(arr, start);
+    start += arr.length;
+  }
+  return result;
+}
+
 export function addTracksChangedCallback(changeCallback) {
+  const queue = [];
   loopDocument.collection('tracks').onSnapshot(snapshot => {
     // This attempts to check whether the change event was created by current browser tab or not
     // https://firebase.google.com/docs/firestore/query-data/listen#events-local-changes
     if (!snapshot.hasPendingWrites) {
-      console.log("Received change events");
-      changeCallback(snapshot.docs.map(doc => {
+      queue.push(snapshot);
+    }
+  });
+
+  // TODO: better to have async callback for onSnapshot?
+  async function poller() {
+    while(true) {
+      if (queue.length === 0) {
+        await new Promise(resolve => window.setTimeout(resolve, 50));
+        continue;
+      }
+
+      console.log("Received change event");
+      const snapshot = queue.shift();
+      const cleanDocs = await Promise.all(snapshot.docs.map(async doc => {
         const data = doc.data();
         return {
           id: doc.id,
-          floatArray: new Float32Array(data.audioBlob.toUint8Array().buffer),
+          floatArray: new Float32Array((await getAudioDataFromFirestore(data)).buffer),
           name: data.name,
           createTime: data.createTime,
           createdByCurrentUser: data.creator === auth.getUid(),
         };
       }));
+      changeCallback(cleanDocs);
     }
-  });
+  }
+
+  poller();
 }

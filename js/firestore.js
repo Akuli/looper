@@ -114,7 +114,7 @@ export async function deleteTrack(track) {
 
 async function getAudioDataFromFirestore(data) {
   if (data.blobIds === undefined) {
-    // legacy loop
+    // legacy loop, only one chunk
     return data.audioBlob.toUint8Array();
   }
 

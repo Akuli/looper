@@ -27,11 +27,8 @@ async function downloadBinaryFileAsArrayBuffer(fileUrl) {
   return xhr.response;
 }
 
-// returns array of GainNodes for adjusting volume
-function connectMultiChannelToSpeaker(ctx, source) {
+function connectMultiChannelToSpeaker(ctx) {
   const splitter = ctx.createChannelSplitter(MAX_TRACKS);
-  source.connect(splitter);
-
   const gainNodes = [];
 
   const merger = ctx.createChannelMerger(2);
@@ -48,7 +45,8 @@ function connectMultiChannelToSpeaker(ctx, source) {
   }
   merger.connect(ctx.destination);
 
-  return gainNodes;
+  // gainNodes returned for adjusting volume later
+  return { gainNodes, splitter };
 }
 
 // Handles overlapping when source is longer than destination
@@ -99,6 +97,30 @@ function asciiToArrayBuffer(asciiString) {
   return new Uint8Array([...asciiString].map(c => c.charCodeAt(0))).buffer;
 }
 
+class Channel {
+  constructor(audioManager, num, gainNode) {
+    this._audioManager = audioManager;
+    this.num = num;
+    this.gainNode = gainNode;
+  }
+
+  // Always returns same thing on chromium, sometimes changes on firefox. Don't know why.
+  getFloatArray() {
+    return this._audioManager.loopAudioBuffer.getChannelData(this.num);
+  }
+
+  setFloatArray(floatArray) {
+    const target = this.getFloatArray();
+    if (target.length !== floatArray.length) {
+      throw new Error("lengths don't match");
+    }
+    if (target !== floatArray) {
+      target.set(floatArray, 0);
+    }
+    this._audioManager.audioDataChanged();
+  }
+}
+
 export class AudioManager {
   constructor(userMedia, bpm, beatsPerLoop) {
     this._ctx = new AudioContext({ sampleRate: 44100 });
@@ -107,24 +129,20 @@ export class AudioManager {
     this._samplesPerBeat = Math.round(this._ctx.sampleRate / (bpm/60));
     this.beatsPerLoop = beatsPerLoop
 
-    this._loopAudioBuffer = new AudioBuffer({
+    this.loopAudioBuffer = new AudioBuffer({
       length: this._samplesPerBeat * beatsPerLoop,
       sampleRate: this._ctx.sampleRate,
       numberOfChannels: MAX_TRACKS,
     });
 
-    const bufSource = this._ctx.createBufferSource();
-    bufSource.channelCount = MAX_TRACKS;
-    bufSource.buffer = this._loopAudioBuffer;
-    bufSource.loop = true;
-    const gainNodes = connectMultiChannelToSpeaker(this._ctx, bufSource);
-    bufSource.start();
+    const connectResult = connectMultiChannelToSpeaker(this._ctx);
+    this._connectBufSourceHere = connectResult.splitter;
+    this._bufSource = null;
+    this.audioDataChanged();
 
-    this.freeChannels = gainNodes.map((node, index) => ({
-      gainNode: node,
-      num: index,
-      floatArray: this._loopAudioBuffer.getChannelData(index),
-    })).reverse();
+    this.freeChannels = connectResult.gainNodes.map(
+      (node, index) => new Channel(this, index, node)
+    ).reverse();
 
     if (userMedia !== null) {
       this.micStreamDestination = this._ctx.createMediaStreamDestination();
@@ -135,15 +153,33 @@ export class AudioManager {
     }
   }
 
+  // Called after changing something in this.loopAudioBuffer
+  audioDataChanged() {
+    if (this._bufSource !== null) {
+      this._bufSource.stop();
+      this._bufSource.disconnect();
+    }
+
+    this._bufSource = this._ctx.createBufferSource();
+    this._bufSource.channelCount = MAX_TRACKS;
+    this._bufSource.buffer = this.loopAudioBuffer;
+    this._bufSource.loop = true;
+    this._bufSource.connect(this._connectBufSourceHere);
+    this._bufSource.start(0, this._ctx.currentTime % this.loopAudioBuffer.duration);
+  }
+
   async addMetronomeTicks(track) {
+    // wav seems to be quite cross-browser, works on firefox and chromium
     const baseUrl = window.location.pathname.replace(/[^\/]*\/looper.html$/, '');
-    const arrayBuffer = await downloadBinaryFileAsArrayBuffer(baseUrl + 'metronome.flac');
+    const arrayBuffer = await downloadBinaryFileAsArrayBuffer(baseUrl + 'metronome.wav');
     const audioBuffer = await arrayBufferToAudioBuffer(this._ctx, arrayBuffer);
     const tick = audioBuffer.getChannelData(0).slice(0, this._samplesPerBeat);
 
-    for (let offset = 0; offset < track.channel.floatArray.length; offset += this._samplesPerBeat) {
-      track.channel.floatArray.set(tick, offset);
+    const target = track.channel.getFloatArray();
+    for (let offset = 0; offset < target.length; offset += this._samplesPerBeat) {
+      target.set(tick, offset);
     }
+    track.channel.setFloatArray(target);
     track.redrawCanvas();
   }
 
@@ -153,7 +189,7 @@ export class AudioManager {
     }
 
     const startTime = this._ctx.currentTime - 0.001*+document.getElementById('lagCompensationSlider').value;
-    const copyOffset = Math.round(startTime*this._loopAudioBuffer.sampleRate);
+    const copyOffset = Math.round(startTime*this.loopAudioBuffer.sampleRate);
 
     this._recordState = {
       track,
@@ -164,20 +200,31 @@ export class AudioManager {
     this._recordState.mediaRecorder.ondataavailable = async(event) => {
       chunks.push(event.data);
 
-      // Two reasons to update the channel here:
-      //    * It gets visualized right away
-      //    * You can hear it right away, useful when you record longer than one loop length
-      //
-      // You can't use only the latest chunk, because audio data format needs previous chunks too.
-      const arrayBuffer = await blobToArrayBuffer(new Blob(chunks));
-      const audioBuffer = await arrayBufferToAudioBuffer(this._ctx, arrayBuffer);
-      track.channel.floatArray.fill(0);
-      new FloatArrayCopier(audioBuffer.getChannelData(0), track.channel.floatArray, copyOffset).copyAll();
-      track.redrawCanvas();
+      // First time creates error in firefox
+      if (chunks.length !== 1) {
+        const arrayBuffer = await blobToArrayBuffer(new Blob(chunks, {type: "audio/ogg; codecs=opus"}));
+        const audioBuffer = await arrayBufferToAudioBuffer(this._ctx, arrayBuffer);
+
+        // Two reasons to update the channel here:
+        //    * It gets visualized right away
+        //    * You can hear it right away, useful when you record longer than one loop length
+        //
+        // You can't use only the latest chunk, because audio data format needs previous chunks too.
+        const target = track.channel.getFloatArray();
+        target.fill(0);
+        new FloatArrayCopier(audioBuffer.getChannelData(0), target, copyOffset).copyAll();
+        track.channel.setFloatArray(target);
+        track.redrawCanvas();
+      }
     };
 
     // Occationally flush audio to chunks array (and to the channel)
-    const flushInterval = window.setInterval(() => this._recordState.mediaRecorder.requestData(), 200);
+    const flushInterval = window.setInterval(() => {
+      // Null check needed on firefox, not necessary on chromium
+      if (this._recordState !== null) {
+        this._recordState.mediaRecorder.requestData();
+      }
+    }, 200);
     this._recordState.mediaRecorder.onstop = () => window.clearInterval(flushInterval);
 
     this._recordState.mediaRecorder.start();
@@ -192,16 +239,16 @@ export class AudioManager {
   }
 
   getPlayIndicatorPosition() {
-    return (this._ctx.currentTime / this._loopAudioBuffer.duration) % 1;
+    return (this._ctx.currentTime / this.loopAudioBuffer.duration) % 1;
   }
 
   getWavBlob(allTracks) {
-    const n = this._loopAudioBuffer.length;
+    const n = this.loopAudioBuffer.length;
     const combinedArray = new Float32Array(n);
 
     for (const track of allTracks) {
       const gain = track.channel.gainNode.gain.value;
-      const sourceArray = track.channel.floatArray;
+      const sourceArray = track.channel.getFloatArray();
       for (let i = 0; i < n; i++) {
         combinedArray[i] += gain*sourceArray[i];
       }
@@ -225,8 +272,8 @@ export class AudioManager {
       new Uint32Array([16]).buffer,
       new Uint16Array([1]).buffer,
       new Uint16Array([1]).buffer,
-      new Uint32Array([this._loopAudioBuffer.sampleRate]).buffer,
-      new Uint32Array([2*this._loopAudioBuffer.sampleRate]).buffer,
+      new Uint32Array([this.loopAudioBuffer.sampleRate]).buffer,
+      new Uint32Array([2*this.loopAudioBuffer.sampleRate]).buffer,
       new Uint16Array([2]).buffer,
       new Uint16Array([16]).buffer,
       asciiToArrayBuffer('data'),

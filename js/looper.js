@@ -1,7 +1,7 @@
 import * as firestore from './firestore.js';
 import { AudioManager } from './audioManager.js';
 import { TrackManager } from './track.js';
-import { fatalError, checkBrowser } from './fatalError.js';
+import { fatalError } from './fatalError.js';
 import { translate } from './translate.js';
 
 
@@ -67,7 +67,6 @@ async function initAudioManager(bpm, beatCount) {
 }
 
 document.addEventListener('DOMContentLoaded', async() => {
-  checkBrowser();
   initLagCompensation();
   let firestoreInitResult;
   try {

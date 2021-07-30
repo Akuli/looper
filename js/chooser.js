@@ -1,5 +1,3 @@
-import { checkBrowser } from './fatalError.js';
-
 let tapTimes = [];  // milliseconds
 
 function isPositiveInteger(value) {
@@ -30,7 +28,6 @@ function handleTap(event) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  checkBrowser();
   document.getElementById('bpmButton').addEventListener('click', handleTap);
   document.body.addEventListener('keypress', event => {
     if (event.target.nodeName.toLowerCase() === 'button') {

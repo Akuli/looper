@@ -96,7 +96,7 @@ class Track {
     this._canvasCtx.lineWidth = 4;  // it can be very squeezed horizontally
 
     const gain = this._getGain();
-    const allSamples = this.channel.floatArray;
+    const allSamples = this.channel.getFloatArray();
 
     this._canvasCtx.beginPath();
     for (let x = 0; x < this.canvas.width; x++) {
@@ -139,10 +139,7 @@ export class TrackManager {
           // New track in firestore
           track = this._addTrack(info.name, info.createTime, info.createdByCurrentUser);
           track.firestoreId = info.id;
-          if (track.channel.floatArray.length !== info.floatArray.length) {
-            throw new Error("lengths don't match");
-          }
-          track.channel.floatArray.set(info.floatArray, 0);
+          track.channel.setFloatArray(info.floatArray);
           track.redrawCanvas();
         } else {
           track.nameInput.value = info.name;
@@ -180,7 +177,10 @@ export class TrackManager {
     }
     this._tracks.splice(index, 1);
 
-    track.channel.floatArray.fill(0);
+    const floatArray = track.channel.getFloatArray();
+    floatArray.fill(0);
+    track.channel.setFloatArray(floatArray);
+
     track.channel.gainNode.gain.value = 1;
     this.audioManager.freeChannels.push(track.channel);
 

@@ -12,4 +12,4 @@ $ python3 server.py
 Then open http://localhost:8000/ in browser.
 
 Sources:
-- metronome.flac: downloaded from https://freesound.org/people/unfa/sounds/243749/
+- metronome.wav: downloaded and converted from https://freesound.org/people/unfa/sounds/243749/

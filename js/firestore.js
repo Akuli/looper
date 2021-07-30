@@ -70,11 +70,10 @@ export async function addTrack(track) {
     throw new Error("can't add track, already added?");
   }
 
-  console.log(`Adding track "${track.nameInput.value}" (${track.channel.floatArray.buffer.byteLength} bytes)`);
-
   // Firestore documents are limited to 1MB, tracks can easily be 3MB
   const chunkSize = 999000;
-  const bigArray = new Uint8Array(track.channel.floatArray.buffer);
+  const bigArray = new Uint8Array(track.channel.getFloatArray().buffer);
+  console.log(`Adding track "${track.nameInput.value}" (${bigArray.length} bytes)`);
 
   const blobIds = [];
   for (let i = 0; i*chunkSize < bigArray.length; i++) {
